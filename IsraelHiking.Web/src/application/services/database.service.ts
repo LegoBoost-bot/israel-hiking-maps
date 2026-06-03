@@ -10,6 +10,7 @@ import deepmerge from "deepmerge";
 import { LoggingService } from "./logging.service";
 import { RunningContextService } from "./running-context.service";
 import { PmTilesService } from "./pmtiles.service";
+import { LocalVectorTileCacheService } from "./local-vector-tile-cache.service";
 import { initialState } from "../reducers/initial-state";
 import { ClearHistoryAction } from "../reducers/routes.reducer";
 import { SetSelectedPoiAction } from "../reducers/poi.reducer";
@@ -46,6 +47,7 @@ export class DatabaseService {
     private readonly loggingService = inject(LoggingService);
     private readonly runningContextService = inject(RunningContextService);
     private readonly pmTilesService = inject(PmTilesService);
+    private readonly localVectorTileCacheService = inject(LocalVectorTileCacheService);
     private readonly httpClient = inject(HttpClient);
     private readonly store = inject(Store);
     private readonly ngZone = inject(NgZone);
@@ -117,7 +119,7 @@ export class DatabaseService {
             const x = +splitUrl[splitUrl.length - 2];
             const y = +(splitUrl[splitUrl.length - 1].split(".")[0]);
             const offlineAvailable = await this.pmTilesService.isOfflineFileAvailable(z, x, y, type);
-            try {
+            const downloadTile = async () => {
                 const response = await firstValueFrom(this.httpClient.get(params.url.replace("slice://", "https://"), { observe: "response", responseType: "arraybuffer" })
                     .pipe(offlineAvailable ? timeout(2000) : timeout(60000))) as any as HttpResponse<any>;
                 if (!response.ok) {
@@ -125,6 +127,13 @@ export class DatabaseService {
                 }
                 const data = response.body ?? new ArrayBuffer(0);
                 return { data, cacheControl: response.headers.get("Cache-Control"), expires: response.headers.get("Expires") };
+            };
+            try {
+                const localCacheResponse = await this.localVectorTileCacheService.getOrDownloadTileBySliceUrl(params.url, downloadTile);
+                if (localCacheResponse != null) {
+                    return localCacheResponse;
+                }
+                return await downloadTile();
             } catch (ex) {
                 // Timeout or other error
                 if (offlineAvailable === false) {

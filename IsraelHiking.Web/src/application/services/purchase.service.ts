@@ -109,6 +109,7 @@ export class PurchaseService {
     }
 
     private shouldShowPaywall(): boolean {
+        return false;
         const paywallState = this.store.selectSnapshot((s: ApplicationState) => s.paywallState);
         const offlineState = this.store.selectSnapshot((s: ApplicationState) => s.offlineState);
         if (!this.runningContextService.isCapacitor) {

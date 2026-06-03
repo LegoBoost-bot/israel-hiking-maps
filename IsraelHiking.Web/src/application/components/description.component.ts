@@ -23,15 +23,16 @@ export class DescriptionComponent implements OnChanges {
 
     public description: string;
     public showToggleTranslation = false;
-    public showingTranslated = true;
+    public showingTranslated = false;
 
     public async ngOnChanges(): Promise<void> {
         if (!this.feature()) {
             return;
         }
         this.description = await this.getDescription();
-        this.showToggleTranslation = this.translationService.isTranslationPossibleAndNeeded(this.feature()) &&
-            this.description !== this.translationService.getBestDescription(this.feature());
+//         this.showToggleTranslation = this.translationService.isTranslationPossibleAndNeeded(this.feature()) &&
+//             this.description !== this.translationService.getBestDescription(this.feature());
+        this.showToggleTranslation = false;
     }
 
     private async getDescription(): Promise<string> {

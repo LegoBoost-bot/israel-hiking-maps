@@ -205,3 +205,4 @@ ModelManifest.xml
 /IsraelHiking.Web/src/**/*.g.d.ts
 *.swp
 elevation-cache
+plan.md

@@ -251,7 +251,7 @@ export class PrivateRoutesSidebarComponent {
         this.toastService.info(this.resources.dataUpdatedSuccessfully);
     }
 
-    public saveMapAroundRoute(routeData: Immutable<RouteData>) {
+    public async saveMapAroundRoute(routeData: Immutable<RouteData>) {
         const region = this.localVectorTileCacheService.createRouteRegion(routeData);
         if (region == null) {
             this.toastService.warning(this.resources.localVectorTileCacheRouteEmpty);
@@ -262,6 +262,11 @@ export class PrivateRoutesSidebarComponent {
             .replace("{name}", routeData.name)
             .replace("{count}", `${region.tileKeys.length}`);
         this.toastService.success(message);
+        
+        const status = await this.localVectorTileCacheService.downloadRegion(region);
+        if (status === "error") {
+            this.toastService.warning(this.resources.unexpectedErrorPleaseTryAgainLater);
+        }
     }
 
     private getLatlngs(routeData: Immutable<RouteData>): LatLngAltTime[] {

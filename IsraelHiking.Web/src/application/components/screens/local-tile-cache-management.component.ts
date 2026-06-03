@@ -10,9 +10,14 @@ import { AnalyticsDirective } from "../../directives/analytics.directive";
 import { ResourcesService } from "../../services/resources.service";
 import { DefaultStyleService } from "../../services/default-style.service";
 import { LayersService } from "../../services/layers.service";
-import { LOCAL_VECTOR_TILE_CACHE_ZOOM, LocalVectorTileCacheService } from "../../services/local-vector-tile-cache.service";
+import {
+    LOCAL_VECTOR_TILE_CACHE_ZOOM,
+    LocalVectorTileCacheDownloadProgress,
+    LocalVectorTileCacheService
+} from "../../services/local-vector-tile-cache.service";
 import { SpatialService } from "../../services/spatial.service";
 import { SelectedRouteService } from "../../services/selected-route.service";
+import { ToastService } from "../../services/toast.service";
 import { DEFAULT_BASE_LAYERS, HIKING_MAP, MTB_MAP } from "../../reducers/initial-state";
 import {
     AddLocalVectorTileCacheRegionAction,
@@ -36,6 +41,7 @@ export class LocalTileCacheManagementComponent {
     public selectedTileXY: { tileX: number; tileY: number } = null;
 
     public readonly regions = signal<LocalVectorTileCacheRegion[]>([]);
+    public readonly progressByRegionId = signal<Record<string, LocalVectorTileCacheDownloadProgress>>({});
     public readonly routes = this.store.selectSignal((state: ApplicationState) => state.routes.present);
     public readonly cachedRoutesGeoJson = computed<GeoJSON.FeatureCollection<GeoJSON.LineString | GeoJSON.Point>>(() => {
         const routeIds = new Set(this.regions()
@@ -55,6 +61,7 @@ export class LocalTileCacheManagementComponent {
     private readonly defaultStyleService = inject(DefaultStyleService);
     private readonly layersService = inject(LayersService);
     private readonly localVectorTileCacheService = inject(LocalVectorTileCacheService);
+    private readonly toastService = inject(ToastService);
     public readonly resources = inject(ResourcesService);
 
     constructor() {
@@ -72,6 +79,12 @@ export class LocalTileCacheManagementComponent {
                 this.updateSavedTilesGeoJson();
                 this.updateSelectedTileGeoJson();
             });
+        this.localVectorTileCacheService.downloadProgressChanged.subscribe(progress => {
+            this.progressByRegionId.update(progressByRegionId => ({
+                ...progressByRegionId,
+                [progress.regionId]: progress
+            }));
+        });
     }
 
     public onMapClick(event: MapMouseEvent) {
@@ -99,7 +112,7 @@ export class LocalTileCacheManagementComponent {
         this.updateSavedTilesGeoJson();
     }
 
-    public addSelectedMapTile() {
+    public async addSelectedMapTile() {
         if (!this.selectedTileXY) {
             return;
         }
@@ -110,10 +123,20 @@ export class LocalTileCacheManagementComponent {
         this.store.dispatch(new AddLocalVectorTileCacheRegionAction(region));
         this.selectedTileXY = null;
         this.updateSelectedTileGeoJson();
+        await this.downloadRegion(region);
     }
 
-    public removeRegion(regionId: string) {
+    public async removeRegion(regionId: string) {
+        const region = this.regions().find(r => r.id === regionId);
         this.store.dispatch(new RemoveLocalVectorTileCacheRegionAction(regionId));
+        if (region != null) {
+            await this.localVectorTileCacheService.deleteRegion(region);
+            this.progressByRegionId.update(progressByRegionId => {
+                const updatedProgress = { ...progressByRegionId };
+                delete updatedProgress[regionId];
+                return updatedProgress;
+            });
+        }
     }
 
     public isTileAlreadySaved(): boolean {
@@ -126,6 +149,30 @@ export class LocalTileCacheManagementComponent {
 
     public getRouteLabel(region: LocalVectorTileCacheRegion): string {
         return this.routes().find(route => route.id === region.routeId)?.name ?? region.label;
+    }
+
+    public getProgress(regionId: string): LocalVectorTileCacheDownloadProgress | null {
+        return this.progressByRegionId()[regionId] ?? this.localVectorTileCacheService.getDownloadProgress(regionId);
+    }
+
+    public isDownloading(regionId: string): boolean {
+        return this.localVectorTileCacheService.isDownloading(regionId);
+    }
+
+    public async retryDownload(region: LocalVectorTileCacheRegion) {
+        await this.downloadRegion(region);
+    }
+
+    private async downloadRegion(region: LocalVectorTileCacheRegion) {
+        const status = await this.localVectorTileCacheService.downloadRegion(region);
+        switch (status) {
+            case "downloaded":
+                this.toastService.success(this.resources.downloadFinishedSuccessfully);
+                break;
+            case "error":
+                this.toastService.warning(this.resources.unexpectedErrorPleaseTryAgainLater);
+                break;
+        }
     }
 
     private updateSavedTilesGeoJson() {
