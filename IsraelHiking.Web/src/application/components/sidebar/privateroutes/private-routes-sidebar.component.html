@@ -98,6 +98,11 @@
                                         <i class="fa fa-lg icon-arrows-h"></i>
                                         <span class="ms-2">{{resources.reverseRoute}}</span>
                                     </button>
+                                    <button mat-menu-item (click)="saveMapAroundRoute(route)" analyticsOn="click"
+                                        analyticsCategory="Route" analyticsLabel="Save map around route">
+                                        <i class="fa fa-lg icon-hdd-o"></i>
+                                        <span class="ms-2">{{resources.localVectorTileCacheSaveAroundRoute}}</span>
+                                    </button>
                                 </mat-menu>
                                 <button mat-button class="flex-1" (click)="deleteRoute($event, route)"
                                     analyticsOn="click" analyticsCategory="Private Routes"

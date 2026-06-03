@@ -243,7 +243,9 @@ export const initialState =
             isSubscribed: false,
             downloadedTiles: null,
             uploadPoiQueue: [],
-            lastOfflineDetectedDate: null
+            lastOfflineDetectedDate: null,
+            isLocalVectorTileCacheEnabled: false,
+            localVectorTileCacheRegions: []
         },
         paywallState: {
             lastPaywallShownDate: null,

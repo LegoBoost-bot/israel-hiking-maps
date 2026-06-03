@@ -6,6 +6,19 @@
 
 export type TileMetadataPerFile = Date | FileNameDateVersion[];
 
+export type LocalVectorTileCacheRegionSource = "mapTile" | "route";
+
+export type LocalVectorTileCacheRegion = {
+    id: string;
+    source: LocalVectorTileCacheRegionSource;
+    label: string;
+    /** Local cache region tiles, keys formatted as "tileX-tileY". */
+    tileKeys: string[];
+    routeId?: string;
+    addedAt: string;
+    bufferMeters?: number;
+};
+
 export type OfflineState = {
     /**
      * The downloaded tiles, key is the tile id and value is the date it was downloaded
@@ -23,4 +36,12 @@ export type OfflineState = {
      * The last time the app detected that the user is offline
      */
     lastOfflineDetectedDate: Date | null;
+    /**
+     * When true, map vector tiles for selected regions are kept in local storage for later use.
+     */
+    isLocalVectorTileCacheEnabled: boolean;
+    /**
+     * User-selected geographic areas whose map tiles should be cached on the device.
+     */
+    localVectorTileCacheRegions: LocalVectorTileCacheRegion[];
 };

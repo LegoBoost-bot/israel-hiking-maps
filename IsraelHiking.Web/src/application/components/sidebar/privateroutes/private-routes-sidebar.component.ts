@@ -33,6 +33,8 @@ import { ShareUrlsService } from "../../../services/share-urls.service";
 import { DataContainerService } from "../../../services/data-container.service";
 import { RoutesFactory } from "../../../services/routes.factory";
 import { ChangeRouteStateAction, ToggleAllRoutesAction, DeleteAllRoutesAction, AddRouteAction, ChangeRoutePropertiesAction, DeleteRouteAction, BulkReplaceRoutesAction } from "../../../reducers/routes.reducer";
+import { AddLocalVectorTileCacheRegionAction } from "../../../reducers/offline.reducer";
+import { LocalVectorTileCacheService } from "../../../services/local-vector-tile-cache.service";
 import { SetOpacityAction, SetSelectedRouteAction, SetWeightAction } from "../../../reducers/route-editing.reducer";
 import type { ApplicationState, LatLngAltTime, RouteData, ShareUrl } from "../../../models";
 
@@ -59,6 +61,7 @@ export class PrivateRoutesSidebarComponent {
     private readonly logReaderService = inject(LogReaderService);
     private readonly shareUrlsService = inject(ShareUrlsService);
     private readonly dataContainerService = inject(DataContainerService);
+    private readonly localVectorTileCacheService = inject(LocalVectorTileCacheService);
 
     public routes: Immutable<RouteData[]>;
     public colors = this.routesFactory.colors;
@@ -246,6 +249,19 @@ export class PrivateRoutesSidebarComponent {
     public reverseRoute(routeData: Immutable<RouteData>) {
         this.selectedRouteService.reverseRoute(routeData.id);
         this.toastService.info(this.resources.dataUpdatedSuccessfully);
+    }
+
+    public saveMapAroundRoute(routeData: Immutable<RouteData>) {
+        const region = this.localVectorTileCacheService.createRouteRegion(routeData);
+        if (region == null) {
+            this.toastService.warning(this.resources.localVectorTileCacheRouteEmpty);
+            return;
+        }
+        this.store.dispatch(new AddLocalVectorTileCacheRegionAction(region));
+        const message = this.resources.localVectorTileCacheRouteSaved
+            .replace("{name}", routeData.name)
+            .replace("{count}", `${region.tileKeys.length}`);
+        this.toastService.success(message);
     }
 
     private getLatlngs(routeData: Immutable<RouteData>): LatLngAltTime[] {

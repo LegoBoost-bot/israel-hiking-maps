@@ -1,6 +1,7 @@
 import { Component, inject } from "@angular/core";
 import { Dir } from "@angular/cdk/bidi";
 import { MatButton, MatAnchor } from "@angular/material/button";
+import { RouterLink } from "@angular/router";
 import { CdkScrollable } from "@angular/cdk/scrolling";
 import { MatFormField, MatLabel } from "@angular/material/input";
 import { AsyncPipe } from "@angular/common";
@@ -10,6 +11,7 @@ import { FormsModule } from "@angular/forms";
 import { MatOption, MatSelect } from "@angular/material/select";
 import { MatDialogRef, MatDialogTitle, MatDialogClose, MatDialogContent, MatDialogActions } from "@angular/material/dialog";
 import { Observable } from "rxjs";
+import { map } from "rxjs/operators";
 import { Store } from "@ngxs/store";
 
 import { AnalyticsDirective } from "../../directives/analytics.directive";
@@ -26,12 +28,13 @@ import {
     ToggleAutomaticRecordingUploadAction,
     ToggleGotLostWarningsAction
 } from "../../reducers/configuration.reducer";
+import { SetLocalVectorTileCacheEnabledAction } from "../../reducers/offline.reducer";
 import type { ApplicationState, BatteryOptimizationType } from "../../models";
 
 @Component({
     selector: "configuration-dialog",
     templateUrl: "./configuration-dialog.component.html",
-    imports: [Dir, MatDialogTitle, MatButton, MatDialogClose, CdkScrollable, MatDialogContent, MatRadioGroup, MatRadioButton, AnalyticsDirective, MatCheckbox, MatDialogActions, MatAnchor, AsyncPipe, FormsModule, MatFormField, MatSelect, MatOption, MatLabel]
+    imports: [Dir, MatDialogTitle, MatButton, MatDialogClose, CdkScrollable, MatDialogContent, MatRadioGroup, MatRadioButton, AnalyticsDirective, MatCheckbox, MatDialogActions, MatAnchor, AsyncPipe, FormsModule, MatFormField, MatSelect, MatOption, MatLabel, RouterLink]
 })
 export class ConfigurationDialogComponent {
 
@@ -40,6 +43,8 @@ export class ConfigurationDialogComponent {
     public isGotLostWarnings$: Observable<boolean>;
     public units$: Observable<"metric" | "imperial">;
     public dateFormat$: Observable<string>;
+    public isLocalVectorTileCacheEnabled$: Observable<boolean>;
+    public localVectorTileCacheRegionsSummary$: Observable<string>;
     public manageSubscriptions: string;
     public username: string;
 
@@ -58,6 +63,9 @@ export class ConfigurationDialogComponent {
         this.isGotLostWarnings$ = this.store.select((state: ApplicationState) => state.configuration.isGotLostWarnings);
         this.units$ = this.store.select((state: ApplicationState) => state.configuration.units);
         this.dateFormat$ = this.store.select((state: ApplicationState) => state.configuration.dateFormat);
+        this.isLocalVectorTileCacheEnabled$ = this.store.select((state: ApplicationState) => state.offlineState.isLocalVectorTileCacheEnabled);
+        this.localVectorTileCacheRegionsSummary$ = this.store.select((state: ApplicationState) => state.offlineState.localVectorTileCacheRegions)
+            .pipe(map(regions => this.resources.localVectorTileCacheRegionsSummary.replace("{count}", `${regions.length}`)));
         this.manageSubscriptions = this.runningContextService.isIos
             ? "https://apps.apple.com/account/subscriptions"
             : "https://play.google.com/store/account/subscriptions";
@@ -82,6 +90,10 @@ export class ConfigurationDialogComponent {
 
     public toggleGotLostWarnings() {
         this.store.dispatch(new ToggleGotLostWarningsAction());
+    }
+
+    public setLocalVectorTileCacheEnabled(enabled: boolean) {
+        this.store.dispatch(new SetLocalVectorTileCacheEnabledAction(enabled));
     }
 
     public clearData() {

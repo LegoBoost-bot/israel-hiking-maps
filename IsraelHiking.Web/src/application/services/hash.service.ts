@@ -37,6 +37,7 @@ export class RouteStrings {
     public static readonly ROUTE_SHARES = "/shares";
     public static readonly ROUTE_PUBLIC_ROUTES = "/public-routes";
     public static readonly ROUTE_OFFLINE_MANAGEMENT = "/offline-management";
+    public static readonly ROUTE_LOCAL_TILE_CACHE = "/local-tile-cache";
     public static readonly ROUTE_TRACES = "/traces";
     public static readonly ROUTE_ABOUT = "/about";
     public static readonly COORDINATES = "Coordinates";
@@ -125,6 +126,9 @@ export class HashService {
             return;
         }
         if (this.router.url.includes(RouteStrings.ROUTE_OFFLINE_MANAGEMENT)) {
+            return;
+        }
+        if (this.router.url.includes(RouteStrings.ROUTE_LOCAL_TILE_CACHE)) {
             return;
         }
         if (this.router.url.includes(RouteStrings.ROUTE_TRACES)) {

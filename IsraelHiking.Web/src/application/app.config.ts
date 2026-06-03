@@ -82,6 +82,7 @@ import { NavigateHereService } from "./services/navigate-here.service";
 import { GpxDataContainerConverterService } from "./services/gpx-data-container-converter.service";
 import { CoordinatesService } from "./services/coordinates.service";
 import { OfflineFilesDownloadService } from "./services/offline-files-download.service";
+import { LocalVectorTileCacheService } from "./services/local-vector-tile-cache.service";
 import { OverpassTurboService } from "./services/overpass-turbo.service";
 import { ImageAttributionService } from "./services/image-attribution.service";
 import { PmTilesService } from "./services/pmtiles.service";
@@ -211,6 +212,7 @@ export const appConfig: ApplicationConfig = {
         GpxDataContainerConverterService,
         CoordinatesService,
         OfflineFilesDownloadService,
+        LocalVectorTileCacheService,
         OverpassTurboService,
         ImageAttributionService,
         PmTilesService,

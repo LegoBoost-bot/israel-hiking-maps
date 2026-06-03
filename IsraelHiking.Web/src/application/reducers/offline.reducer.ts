@@ -3,7 +3,7 @@ import { Injectable } from "@angular/core";
 import { produce } from "immer";
 
 import { initialState } from "./initial-state";
-import type { OfflineState, TileMetadataPerFile } from "../models";
+import type { LocalVectorTileCacheRegion, OfflineState, TileMetadataPerFile } from "../models";
 
 export class SetOfflineSubscribedAction {
     public static type = this.prototype.constructor.name;
@@ -33,6 +33,21 @@ export class RemoveFromPoiQueueAction {
 export class SetLastOfflineDetectedDate {
     public static type = this.prototype.constructor.name;
     constructor(public lastOfflineDetectedDate: Date | null) { }
+}
+
+export class SetLocalVectorTileCacheEnabledAction {
+    public static type = this.prototype.constructor.name;
+    constructor(public isLocalVectorTileCacheEnabled: boolean) { }
+}
+
+export class AddLocalVectorTileCacheRegionAction {
+    public static type = this.prototype.constructor.name;
+    constructor(public region: LocalVectorTileCacheRegion) { }
+}
+
+export class RemoveLocalVectorTileCacheRegionAction {
+    public static type = this.prototype.constructor.name;
+    constructor(public regionId: string) { }
 }
 
 @State<OfflineState>({
@@ -95,6 +110,34 @@ export class OfflineReducer {
     setLastOfflineDetectedDate(ctx: StateContext<OfflineState>, action: SetLastOfflineDetectedDate) {
         ctx.setState(produce(ctx.getState(), lastState => {
             lastState.lastOfflineDetectedDate = action.lastOfflineDetectedDate;
+        }));
+    }
+
+    @Action(SetLocalVectorTileCacheEnabledAction)
+    setLocalVectorTileCacheEnabled(ctx: StateContext<OfflineState>, action: SetLocalVectorTileCacheEnabledAction) {
+        ctx.setState(produce(ctx.getState(), lastState => {
+            lastState.isLocalVectorTileCacheEnabled = action.isLocalVectorTileCacheEnabled;
+            return lastState;
+        }));
+    }
+
+    @Action(AddLocalVectorTileCacheRegionAction)
+    addLocalVectorTileCacheRegion(ctx: StateContext<OfflineState>, action: AddLocalVectorTileCacheRegionAction) {
+        ctx.setState(produce(ctx.getState(), lastState => {
+            lastState.isLocalVectorTileCacheEnabled = true;
+            lastState.localVectorTileCacheRegions = lastState.localVectorTileCacheRegions
+                .filter(region => region.id !== action.region.id && region.routeId !== action.region.routeId);
+            lastState.localVectorTileCacheRegions.push(action.region);
+            return lastState;
+        }));
+    }
+
+    @Action(RemoveLocalVectorTileCacheRegionAction)
+    removeLocalVectorTileCacheRegion(ctx: StateContext<OfflineState>, action: RemoveLocalVectorTileCacheRegionAction) {
+        ctx.setState(produce(ctx.getState(), lastState => {
+            lastState.localVectorTileCacheRegions = lastState.localVectorTileCacheRegions
+                .filter(region => region.id !== action.regionId);
+            return lastState;
         }));
     }
 }

@@ -197,6 +197,21 @@ export class ResourcesService {
     public findMissingRoutesAfterUploadHint: string;
     public gotLostWarnings: string;
     public gotLostWarningsHint: string;
+    public localVectorTileCache: string;
+    public localVectorTileCacheHint: string;
+    public localVectorTileCacheManage: string;
+    public localVectorTileCacheManageHint: string;
+    public localVectorTileCacheRegionsSummary: string;
+    public localVectorTileCacheClickMap: string;
+    public localVectorTileCacheAddMapArea: string;
+    public localVectorTileCacheAreaAlreadySaved: string;
+    public localVectorTileCacheNoRegions: string;
+    public localVectorTileCacheRegionRoute: string;
+    public localVectorTileCacheRegionMap: string;
+    public localVectorTileCacheTiles: string;
+    public localVectorTileCacheSaveAroundRoute: string;
+    public localVectorTileCacheRouteSaved: string;
+    public localVectorTileCacheRouteEmpty: string;
     public navigateWithWaze: string;
     public navigateWithGoogleMaps: string;
     public offlinePurchaseGraditude: string;
@@ -686,6 +701,25 @@ export class ResourcesService {
         this.gotLostWarnings = this.gettextCatalog.getString("Got lost warnings");
         this.gotLostWarningsHint = this.gettextCatalog.getString("Lets you know when the your planned route " +
             "is more than 50 meters from your current position");
+        this.localVectorTileCache = this.gettextCatalog.getString("Cache map tiles on this device");
+        this.localVectorTileCacheHint = this.gettextCatalog.getString(
+            "Choose specific map areas to keep on this device for later use.");
+        this.localVectorTileCacheManage = this.gettextCatalog.getString("Manage saved map areas");
+        this.localVectorTileCacheManageHint = this.gettextCatalog.getString(
+            "Tap the map to select an area, or add areas from a route in your routes list.");
+        this.localVectorTileCacheRegionsSummary = this.gettextCatalog.getString("{count} saved map areas");
+        this.localVectorTileCacheClickMap = this.gettextCatalog.getString("Tap the map to select an area to save.");
+        this.localVectorTileCacheAddMapArea = this.gettextCatalog.getString("Save this map area");
+        this.localVectorTileCacheAreaAlreadySaved = this.gettextCatalog.getString("This map area is already saved.");
+        this.localVectorTileCacheNoRegions = this.gettextCatalog.getString("No map areas saved yet.");
+        this.localVectorTileCacheRegionRoute = this.gettextCatalog.getString("Route area");
+        this.localVectorTileCacheRegionMap = this.gettextCatalog.getString("Map area");
+        this.localVectorTileCacheTiles = this.gettextCatalog.getString("tiles");
+        this.localVectorTileCacheSaveAroundRoute = this.gettextCatalog.getString("Save map around route");
+        this.localVectorTileCacheRouteSaved = this.gettextCatalog.getString(
+            "Saved map around \"{name}\" ({count} tiles).");
+        this.localVectorTileCacheRouteEmpty = this.gettextCatalog.getString(
+            "This route has no points, so there is no map area to save.");
         this.navigateWithWaze = this.gettextCatalog.getString("Navigate with Waze");
         this.navigateWithGoogleMaps = this.gettextCatalog.getString("Navigate with Google Maps");
         this.offlinePurchaseGraditude = this.gettextCatalog.getString("Thanks for purchasing! download instructions here...");

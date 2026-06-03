@@ -69,6 +69,24 @@
         </div>
       </div>
       }
+      <div class="flex flex-row w-full">
+        <div class="flex-1">
+          <mat-checkbox [checked]="isLocalVectorTileCacheEnabled$ | async"
+            (change)="setLocalVectorTileCacheEnabled($event.checked)" color="primary" analyticsOn="click"
+            analyticsCategory="Configuration" analyticsLabel="Toggle local vector tile cache">
+            {{resources.localVectorTileCache}}
+          </mat-checkbox>
+          <br />
+          <span class="text-sm">{{resources.localVectorTileCacheHint}}</span>
+          <br />
+          <span class="text-sm">{{localVectorTileCacheRegionsSummary$ | async}}</span>
+          <br />
+          <a mat-raised-button class="mt-2" routerLink="/local-tile-cache" mat-dialog-close color="primary"
+            analyticsOn="click" analyticsCategory="Configuration" analyticsLabel="Manage saved map areas">
+            {{resources.localVectorTileCacheManage}}
+          </a>
+        </div>
+      </div>
     </div>
     <div class="flex flex-row">
       <mat-form-field class="w-full">

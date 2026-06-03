@@ -8,6 +8,7 @@ import { AttributionComponent } from "./components/screens/attribution.component
 import { SharesComponent } from "./components/screens/shares.component";
 import { TracesComponent } from "./components/screens/traces.component";
 import { OfflineManagementComponent } from "./components/screens/offline-management.component";
+import { LocalTileCacheManagementComponent } from "./components/screens/local-tile-cache-management.component";
 import { PublicRoutesComponent } from "./components/screens/public-routes.component";
 
 export const routes: Route[] = [
@@ -16,6 +17,7 @@ export const routes: Route[] = [
     { path: "attribution", component: AttributionComponent, title: "Mapeak - Attribution" },
     { path: ":lang/faq", component: FaqComponent, title: "Mapeak - FAQ" },
     { path: "offline-management", component: OfflineManagementComponent, title: "Mapeak - Offline Management" },
+    { path: "local-tile-cache", component: LocalTileCacheManagementComponent, title: "Mapeak - Saved Map Areas" },
     { path: "public-routes", component: PublicRoutesComponent, title: "Mapeak - Public Routes" },
     { path: "privacy-policy", component: PrivacyPolicyComponent, title: "Mapeak - Privacy Policy" },
     { path: "shares", component: SharesComponent, title: "Mapeak - Cloud Saves" },
