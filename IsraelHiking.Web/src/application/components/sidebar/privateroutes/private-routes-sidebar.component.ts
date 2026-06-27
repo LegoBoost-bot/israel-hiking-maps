@@ -117,6 +117,8 @@ export class PrivateRoutesSidebarComponent {
         const newRouteState = selectedRoute != null && selectedRoute.state !== "Hidden" ? selectedRoute.state : "ReadOnly";
         this.store.dispatch(new ChangeRouteStateAction(routeData.id, newRouteState));
         this.selectedRouteService.setSelectedRoute(routeData.id);
+        this.close();
+        this.moveToRoute(routeData);
     }
 
     public toggleAllRoutes(event: Event) {
