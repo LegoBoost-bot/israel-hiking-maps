@@ -30,8 +30,8 @@ export class DescriptionComponent implements OnChanges {
             return;
         }
         this.description = await this.getDescription();
-//         this.showToggleTranslation = this.translationService.isTranslationPossibleAndNeeded(this.feature()) &&
-//             this.description !== this.translationService.getBestDescription(this.feature());
+        //         this.showToggleTranslation = this.translationService.isTranslationPossibleAndNeeded(this.feature()) &&
+        //             this.description !== this.translationService.getBestDescription(this.feature());
         this.showToggleTranslation = false;
     }
 

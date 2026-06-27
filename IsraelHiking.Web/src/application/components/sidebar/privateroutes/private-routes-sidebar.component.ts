@@ -197,6 +197,26 @@ export class PrivateRoutesSidebarComponent {
         });
     }
 
+    public shareRoute(routeData: Immutable<RouteData>) {
+        if (this.store.selectSnapshot((s: ApplicationState) => s.userState).userInfo == null) {
+            this.toastService.warning(this.resources.loginRequired);
+            return;
+        }
+        const dataContainer = this.dataContainerService.getContainerForRoutes([routeData]);
+        if (this.dataContainerService.isContainerEmpty(dataContainer)) {
+            this.toastService.warning(this.resources.unableToSaveAnEmptyRoute);
+            return;
+        }
+        this.dialog.open<ShareEditDialogComponent, ShareEditDialogComponentData>(ShareEditDialogComponent, {
+            width: "480px",
+            data: {
+                fullShareUrl: structuredClone(this.shareUrlsService.getSelectedShareUrl()) as ShareUrl,
+                dataContainer,
+                hasHiddenRoutes: this.routes.some(r => r.state === "Hidden")
+            }
+        });
+    }
+
     public moveToRoute(routeData: Immutable<RouteData>) {
         const latLngs = this.getLatlngs(routeData);
         if (latLngs.length === 0) {

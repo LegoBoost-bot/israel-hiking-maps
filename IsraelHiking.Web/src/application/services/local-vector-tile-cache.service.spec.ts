@@ -227,7 +227,7 @@ describe("LocalVectorTileCacheService", () => {
             // Add regionB reference
             const db = new Dexie("LocalTileCache");
             db.version(1).stores({ tiles: "url, z, x, y, type, sourceType, *regionTileKeys" });
-            let entry = await db.table("tiles").get("https://israelhiking.osm.org.il/Israel/15/100/100.pbf");
+            const entry = await db.table("tiles").get("https://israelhiking.osm.org.il/Israel/15/100/100.pbf");
             entry.regionTileKeys = ["100-100", "another-key"]; // Wait, tile keys are strictly coordinates
             // we simulate another region having this tileKey, actually it's the same tileKey.
             // When deleteRegion is called, it removes ALL keys of that region from all entries.

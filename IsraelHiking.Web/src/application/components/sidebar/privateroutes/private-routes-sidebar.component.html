@@ -88,6 +88,11 @@
                                         <i class="fa fa-lg icon-external-link-square"></i>
                                         <span class="ms-2">{{resources.saveRouteToFile}}</span>
                                     </button>
+                                    <button mat-menu-item (click)="shareRoute(route)" analyticsOn="click"
+                                        analyticsCategory="Route" analyticsLabel="Share route">
+                                        <i class="fa fa-lg icon-share-alt"></i>
+                                        <span class="ms-2">{{resources.share}}</span>
+                                    </button>
                                     <button mat-menu-item (click)="moveToRoute(route)" analyticsOn="click"
                                         analyticsCategory="Route" analyticsLabel="Move to route">
                                         <i class="fa fa-lg icon-crosshairs"></i>
