@@ -218,6 +218,35 @@ export class LocalVectorTileCacheService {
         this.progressByRegion.delete(region.id);
     }
 
+    public async storeStyle(url: string, styleText: string): Promise<void> {
+        const normalizedUrl = this.normalizeTileUrl(url);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(styleText).buffer;
+        await this.getDatabase().table<LocalTileCacheEntry>(LocalVectorTileCacheService.TABLE_NAME).put({
+            url: normalizedUrl,
+            z: 0,
+            x: 0,
+            y: 0,
+            type: "style",
+            sourceType: "vector",
+            size: data.byteLength,
+            fetchedAt: new Date().toISOString(),
+            regionTileKeys: ["style"],
+            data
+        });
+    }
+
+    public async getStyle(url: string): Promise<string | null> {
+        const normalizedUrl = this.normalizeTileUrl(url);
+        const cached = await this.getTileByUrl(normalizedUrl);
+        if (cached == null) {
+            return null;
+        }
+        const decoder = new TextDecoder("utf-8");
+        return decoder.decode(cached);
+    }
+
+
     public async getOrDownloadTileBySliceUrl(
         sliceUrl: string,
         download: () => Promise<{ data: ArrayBuffer; cacheControl?: string; expires?: string }>
@@ -325,6 +354,7 @@ export class LocalVectorTileCacheService {
         for (const styleUrl of [Urls.HIKING_STYLE_ADDRESS, Urls.MTB_STYLE_ADDRESS]) {
             try {
                 const styleText = await firstValueFrom(this.httpClient.get(styleUrl, { responseType: "text" }).pipe(timeout(10000)));
+                await this.storeStyle(styleUrl, styleText);
                 const style = JSON.parse(styleText) as StyleSpecification;
                 for (const source of Object.values(style.sources ?? {})) {
                     if (source.type !== "vector" && source.type !== "raster-dem") {

@@ -112,6 +112,22 @@ export class DatabaseService {
             return { data };
         });
         addProtocol("slice", async (params, _abortController) => {
+            if (params.url.endsWith(".json")) {
+                const url = params.url.replace("slice://", "https://");
+                const cachedStyle = await this.localVectorTileCacheService.getStyle(url);
+                if (cachedStyle != null) {
+                    const encoder = new TextEncoder();
+                    return { data: encoder.encode(cachedStyle).buffer };
+                }
+                const response = await firstValueFrom(this.httpClient.get(url, { observe: "response", responseType: "text" }).pipe(timeout(10000))) as HttpResponse<string>;
+                if (!response.ok) {
+                    throw new Error(`Failed to get style ${params.url}: ${response.status}`);
+                }
+                const styleText = response.body ?? "";
+                await this.localVectorTileCacheService.storeStyle(url, styleText);
+                const encoder = new TextEncoder();
+                return { data: encoder.encode(styleText).buffer };
+            }
             // slice://mapeak.com/vector/data/IHM-schema/{z}/{x}/{y}.mvt
             const splitUrl = params.url.split("/");
             const type = splitUrl[splitUrl.length - 4];

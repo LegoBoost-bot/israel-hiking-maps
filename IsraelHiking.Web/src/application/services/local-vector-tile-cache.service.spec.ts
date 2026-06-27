@@ -245,4 +245,22 @@ describe("LocalVectorTileCacheService", () => {
             // even though Region B still needs it!
         });
     });
+
+    describe("Style caching", () => {
+        it("Should store and retrieve a style from the cache", async () => {
+            const url = "https://raw.githubusercontent.com/IsraelHikingMap/VectorMap/master/Styles/mapeak-hike.json";
+            const styleText = "{\"version\": 8}";
+
+            await service.storeStyle(url, styleText);
+            const retrieved = await service.getStyle(url);
+
+            expect(retrieved).toBe(styleText);
+        });
+
+        it("Should return null if style is not cached", async () => {
+            const url = "https://nonexistent/style.json";
+            const retrieved = await service.getStyle(url);
+            expect(retrieved).toBeNull();
+        });
+    });
 });

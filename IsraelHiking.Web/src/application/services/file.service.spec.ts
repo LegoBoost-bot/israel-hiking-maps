@@ -11,6 +11,7 @@ import { MapService } from "./map.service";
 import { GpxDataContainerConverterService } from "./gpx-data-container-converter.service";
 import { LoggingService } from "./logging.service";
 import { ElevationProvider } from "./elevation.provider";
+import { LocalVectorTileCacheService } from "./local-vector-tile-cache.service";
 import { Urls } from "../urls";
 import type { DataContainer, MarkerData, RouteData } from "../models";
 
@@ -37,11 +38,15 @@ describe("FileService", () => {
             info: () => { },
             error: () => { }
         };
+        const localVectorTileCacheServiceMock = {
+            getStyle: vi.fn().mockResolvedValue(null)
+        };
         TestBed.configureTestingModule({
             providers: [
                 RunningContextService,
                 GpxDataContainerConverterService,
                 { provide: LoggingService, useValue: loggingServiceMock },
+                { provide: LocalVectorTileCacheService, useValue: localVectorTileCacheServiceMock },
                 { provide: MapService, useValue: mapService },
                 { provide: SelectedRouteService, useValue: selectedRouteService },
                 { provide: ImageResizeService, useValue: imageResizeService },
@@ -145,10 +150,23 @@ describe("FileService", () => {
         async (service: FileService, mockBackend: HttpTestingController) => {
             const promise = service.getStyleJsonContent("s.json", false);
 
+            await new Promise(resolve => setTimeout(resolve));
+
             mockBackend.expectOne("s.json").flush({});
 
             const response = await promise;
             expect(response).toEqual("{}");
+        }
+    ));
+
+    it("Should get style json content from cache if available", inject([FileService, LocalVectorTileCacheService],
+        async (service: FileService, localVectorTileCacheService: LocalVectorTileCacheService) => {
+            vi.spyOn(localVectorTileCacheService, "getStyle").mockResolvedValue("{\"cached\": true}");
+
+            const response = await service.getStyleJsonContent("s.json", false);
+
+            expect(response).toEqual("{\"cached\": true}");
+            expect(localVectorTileCacheService.getStyle).toHaveBeenCalledWith("s.json");
         }
     ));
 
