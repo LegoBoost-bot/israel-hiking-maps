@@ -16,6 +16,7 @@ import { Store } from "@ngxs/store";
 import { Immutable } from "immer";
 
 import { ShareEditDialogComponent, ShareEditDialogComponentData } from "../../dialogs/share-edit-dialog.component";
+import { ExportForPrintDialogComponent, ExportForPrintDialogData } from "../../dialogs/export-for-print-dialog.component";
 import { FileSaveDialogComponent } from "../../../components/dialogs/file-save-dialog.component";
 import { DistancePipe } from "../../../pipes/distance.pipe";
 import { AnalyticsDirective } from "../../../directives/analytics.directive";
@@ -196,6 +197,15 @@ export class PrivateRoutesSidebarComponent {
         }
         this.dialog.open<FileSaveDialogComponent, RouteData>(FileSaveDialogComponent, {
             data: structuredClone(routeData) as RouteData
+        });
+    }
+
+    public exportForPrint(routeData: Immutable<RouteData>) {
+        this.dialog.open<ExportForPrintDialogComponent, ExportForPrintDialogData>(ExportForPrintDialogComponent, {
+            width: "480px",
+            data: {
+                route: structuredClone(routeData) as RouteData
+            }
         });
     }
 

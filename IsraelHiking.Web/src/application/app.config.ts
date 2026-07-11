@@ -86,6 +86,7 @@ import { LocalVectorTileCacheService } from "./services/local-vector-tile-cache.
 import { OverpassTurboService } from "./services/overpass-turbo.service";
 import { ImageAttributionService } from "./services/image-attribution.service";
 import { PmTilesService } from "./services/pmtiles.service";
+import { PrintService } from "./services/print.service";
 import { ApplicationUpdateService } from "./services/application-update.service";
 import { INatureService } from "./services/inature.service";
 import { WikidataService } from "./services/wikidata.service";
@@ -216,6 +217,7 @@ export const appConfig: ApplicationConfig = {
         OverpassTurboService,
         ImageAttributionService,
         PmTilesService,
+        PrintService,
         ApplicationUpdateService,
         INatureService,
         WikidataService,

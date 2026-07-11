@@ -17,6 +17,10 @@ export class MapService {
     private missingImagesArray: string[] = [];
     private currentMap: Map;
 
+    public get map(): Map {
+        return this.currentMap;
+    }
+
     private readonly cancelableTimeoutService = inject(CancelableTimeoutService);
     private readonly loggingService = inject(LoggingService);
     private readonly resourcesService = inject(ResourcesService)
