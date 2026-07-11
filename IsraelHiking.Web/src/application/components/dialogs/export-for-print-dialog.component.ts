@@ -5,6 +5,7 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
 import { MatOption, MatSelect } from "@angular/material/select";
 import { MatRadioButton, MatRadioGroup } from "@angular/material/radio";
+import { MatCheckbox } from "@angular/material/checkbox";
 import { FormsModule } from "@angular/forms";
 import { Dir } from "@angular/cdk/bidi";
 import { ResourcesService } from "../../services/resources.service";
@@ -13,14 +14,14 @@ import { SpatialService } from "../../services/spatial.service";
 import { RouteData, LatLngAltTime } from "../../models";
 
 export type ExportForPrintDialogData = {
-    route: RouteData;
+    route?: RouteData;
 };
 
 @Component({
     selector: "export-for-print-dialog",
     templateUrl: "export-for-print-dialog.component.html",
     styleUrls: ["export-for-print-dialog.component.scss"],
-    imports: [MatDialogModule, MatButton, MatFormFieldModule, MatInput, MatSelect, MatOption, FormsModule, Dir, MatRadioButton, MatRadioGroup]
+    imports: [MatDialogModule, MatButton, MatFormFieldModule, MatInput, MatSelect, MatOption, FormsModule, Dir, MatRadioButton, MatRadioGroup, MatCheckbox]
 })
 export class ExportForPrintDialogComponent {
     public readonly resources = inject(ResourcesService);
@@ -32,10 +33,12 @@ export class ExportForPrintDialogComponent {
     public scale: "fit" | "1:50000" | "1:25000" | "custom" = "fit";
     public customScale = 25000;
     public orientation: "portrait" | "landscape" | "auto" = "auto";
+    public includeHillshade = true;
     public warning: string | null = null;
+    public mode: "view" | "all" | "route" = this.data.route ? "route" : "view";
 
     public async export() {
-        await this.printService.export(this.format, this.scale, this.customScale, this.orientation, this.data.route);
+        await this.printService.export(this.format, this.scale, this.customScale, this.orientation, this.mode === "route" ? this.data.route : undefined, this.mode, this.includeHillshade);
         this.dialogRef.close();
     }
 

@@ -15,15 +15,27 @@ export class PrintService {
     private readonly runningContextService = inject(RunningContextService);
     private readonly store = inject(Store);
 
-    public async export(format: "pdf" | "png", scale: string, customScale: number, orientation: "portrait" | "landscape" | "auto", route?: RouteData) {
+    public async export(format: "pdf" | "png", scale: string, customScale: number, orientation: "portrait" | "landscape" | "auto", route: RouteData | undefined, mode: "view" | "all" | "route", includeHillshade: boolean) {
         const map = this.mapService.map;
         if (!map) {
             return;
         }
 
         const originalRouteStates = new Map<string, string>();
-        if (route) {
-            const allRoutes = this.store.selectSnapshot((s: ApplicationState) => s.routes.present);
+        const allRoutes = this.store.selectSnapshot((s: ApplicationState) => s.routes.present);
+        
+        const hillshadeLayerIds: { id: string, visibility: string }[] = [];
+        if (!includeHillshade) {
+            const layers = map.getStyle().layers;
+            for (const layer of layers) {
+                if (layer.type === 'hillshade') {
+                    hillshadeLayerIds.push({ id: layer.id, visibility: map.getLayoutProperty(layer.id, 'visibility') });
+                    map.setLayoutProperty(layer.id, 'visibility', 'none');
+                }
+            }
+        }
+        
+        if (mode === "route" && route) {
             for (const r of allRoutes) {
                 originalRouteStates.set(r.id, r.state);
                 if (r.id !== route.id && r.state !== "Hidden") {
@@ -39,11 +51,23 @@ export class PrintService {
         let width = 2480;
         let height = 3508;
         let isLandscape = false;
+        
+        let bounds: any;
 
-        if (route) {
+        if (mode === "route" && route) {
             const latlngs = this.getLatlngs(route);
-            const bounds = SpatialService.getBounds(latlngs);
-            
+            bounds = SpatialService.getBounds(latlngs);
+        } else if (mode === "all") {
+            const latlngs: LatLngAltTime[] = [];
+            for (const r of allRoutes.filter(r => r.state !== "Hidden")) {
+                latlngs.push(...this.getLatlngs(r));
+            }
+            if (latlngs.length > 0) {
+                bounds = SpatialService.getBounds(latlngs);
+            }
+        }
+
+        if (bounds) {
             if (format === "png") {
                 const ne = map.project([bounds.northEast.lng, bounds.northEast.lat]);
                 const sw = map.project([bounds.southWest.lng, bounds.southWest.lat]);
@@ -60,24 +84,32 @@ export class PrintService {
                     height = 2480;
                 }
             }
-
-            container.style.width = `${width}px`;
-            container.style.height = `${height}px`;
-            map.resize();
-
-            if (scale === "fit") {
-                await this.mapService.fitBounds(bounds, 100);
+        } else if (format === "pdf") {
+            if (orientation === "auto") {
+                isLandscape = container.offsetWidth > container.offsetHeight;
             } else {
-                const center = SpatialService.getCenter(latlngs);
-                const scaleValue = scale === "custom" ? customScale : (scale === "1:50000" ? 50000 : 25000);
-                const zoom = this.getZoomForScale(scaleValue, map.getCenter().lat);
-                map.setCenter([center.lng, center.lat]);
-                map.setZoom(zoom);
+                isLandscape = orientation === "landscape";
             }
-        } else {
-            container.style.width = `${width}px`;
-            container.style.height = `${height}px`;
-            map.resize();
+            if (isLandscape) {
+                width = 3508;
+                height = 2480;
+            }
+        }
+
+        container.style.width = `${width}px`;
+        container.style.height = `${height}px`;
+        map.resize();
+
+        if (bounds && scale === "fit") {
+            await this.mapService.fitBounds(bounds, 100);
+        } else if (scale !== "fit") {
+            const scaleValue = scale === "custom" ? customScale : (scale === "1:50000" ? 50000 : 25000);
+            const zoom = this.getZoomForScale(scaleValue, map.getCenter().lat);
+            if (bounds) {
+                const center = SpatialService.getCenter([bounds.southWest, bounds.northEast]);
+                map.setCenter([center.lng, center.lat]);
+            }
+            map.setZoom(zoom);
         }
 
         await new Promise<void>(resolve => {
@@ -99,6 +131,10 @@ export class PrintService {
             for (const [id, state] of originalRouteStates) {
                 this.store.dispatch(new ChangeRouteStateAction(id, state as any));
             }
+        }
+
+        for (const hillshadeLayer of hillshadeLayerIds) {
+            map.setLayoutProperty(hillshadeLayer.id, 'visibility', hillshadeLayer.visibility as any);
         }
 
         const fileName = `map_${new Date().getTime()}.${format}`;
@@ -138,7 +174,7 @@ export class PrintService {
         return zoom;
     }
 
-    private getLatlngs(routeData: RouteData): LatLngAltTime[] {
+    private getLatlngs(routeData: RouteData | any): LatLngAltTime[] {
         let latLngs: LatLngAltTime[] = [];
         for (const segment of routeData.segments) {
             latLngs = latLngs.concat(segment.latlngs);

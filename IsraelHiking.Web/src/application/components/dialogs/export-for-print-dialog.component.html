@@ -1,7 +1,17 @@
 <div mat-dialog-title class="mt-4">Print</div>
 <div mat-dialog-content [dir]="resources.direction">
-    <div class="h-48 bg-gray-200 mb-4 flex items-center justify-center">
-        Map Preview Placeholder
+    <div class="mb-4">
+        <label class="block mb-2 text-sm font-medium text-gray-700">What to print</label>
+        <mat-radio-group [(ngModel)]="mode" class="flex flex-col gap-2 black-radio" color="primary">
+            <mat-radio-button value="view">Current View</mat-radio-button>
+            <mat-radio-button value="all">Fit All Visible Routes</mat-radio-button>
+            @if (data.route) {
+            <mat-radio-button value="route">Route: {{data.route.name}}</mat-radio-button>
+            }
+        </mat-radio-group>
+    </div>
+    <div class="mb-4">
+        <mat-checkbox [(ngModel)]="includeHillshade" color="primary">Include Hillshade</mat-checkbox>
     </div>
     <mat-form-field class="w-full">
         <mat-label>Format</mat-label>
@@ -10,7 +20,6 @@
             <mat-option value="png">PNG</mat-option>
         </mat-select>
     </mat-form-field>
-    @if (format === 'pdf') {
     <div class="mb-4">
         <label class="block mb-2 text-sm font-medium text-gray-700">Orientation</label>
         <mat-radio-group [(ngModel)]="orientation" class="flex flex-row gap-4 mb-4 black-radio" color="primary">
@@ -20,7 +29,7 @@
         </mat-radio-group>
         <label class="block mb-2 text-sm font-medium text-gray-700">Scale</label>
         <mat-radio-group [(ngModel)]="scale" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
-            <mat-radio-button value="fit">Fit to Route</mat-radio-button>
+            <mat-radio-button value="fit">Fit to content</mat-radio-button>
             <mat-radio-button value="1:50000">1:50,000</mat-radio-button>
             <mat-radio-button value="1:25000">1:25,000</mat-radio-button>
             <mat-radio-button value="custom">1:
@@ -33,27 +42,8 @@
         <p class="text-red-500 text-sm mt-2">{{warning}}</p>
         }
     </div>
-    }
-    @else {
-    <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium text-gray-700">Scale</label>
-        <mat-radio-group [(ngModel)]="scale" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
-            <mat-radio-button value="fit">Fit to Route</mat-radio-button>
-            <mat-radio-button value="1:50000">1:50,000</mat-radio-button>
-            <mat-radio-button value="1:25000">1:25,000</mat-radio-button>
-            <mat-radio-button value="custom">1:
-                <mat-form-field class="w-24">
-                    <input matInput type="number" [(ngModel)]="customScale" [disabled]="scale !== 'custom'" (ngModelChange)="checkFit()" />
-                </mat-form-field>
-            </mat-radio-button>
-        </mat-radio-group>
-        @if (warning) {
-        <p class="text-red-500 text-sm mt-2">{{warning}}</p>
-        }
-    </div>
-    }
 </div>
 <div mat-dialog-actions [dir]="resources.direction">
     <button mat-button (click)="dialogRef.close()">{{resources.cancel}}</button>
-    <button mat-button color="primary" (click)="export()">Export</button>
+    <button mat-button color="primary" (click)="export()">Print</button>
 </div>
