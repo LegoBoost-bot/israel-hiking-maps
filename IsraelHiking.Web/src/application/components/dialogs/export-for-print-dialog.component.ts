@@ -8,10 +8,12 @@ import { MatRadioButton, MatRadioGroup } from "@angular/material/radio";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { FormsModule } from "@angular/forms";
 import { Dir } from "@angular/cdk/bidi";
+import { Store } from "@ngxs/store";
 import { ResourcesService } from "../../services/resources.service";
 import { PrintService } from "../../services/print.service";
 import { SpatialService } from "../../services/spatial.service";
-import { RouteData, LatLngAltTime } from "../../models";
+import { MapService } from "../../services/map.service";
+import { RouteData, LatLngAltTime, ApplicationState } from "../../models";
 
 export type ExportForPrintDialogData = {
     route?: RouteData;
@@ -28,26 +30,53 @@ export class ExportForPrintDialogComponent {
     public readonly data = inject<ExportForPrintDialogData>(MAT_DIALOG_DATA);
     public readonly dialogRef = inject(MatDialogRef<ExportForPrintDialogComponent>);
     private readonly printService = inject(PrintService);
+    private readonly mapService = inject(MapService);
+    private readonly store = inject(Store);
 
     public format: "pdf" | "png" = "pdf";
     public scale: "fit" | "1:50000" | "1:25000" | "custom" = "fit";
     public customScale = 25000;
     public orientation: "portrait" | "landscape" | "auto" = "auto";
+    public paperSize: "A5" | "A4" | "A3" | "Letter" = "A4";
+    public splitPages = false;
     public includeHillshade = true;
     public warning: string | null = null;
     public mode: "view" | "all" | "route" = this.data.route ? "route" : "view";
 
     public async export() {
-        await this.printService.export(this.format, this.scale, this.customScale, this.orientation, this.mode === "route" ? this.data.route : undefined, this.mode, this.includeHillshade);
+        await this.printService.export(this.format, this.scale, this.customScale, this.orientation, this.paperSize, this.splitPages, this.mode === "route" ? this.data.route : undefined, this.mode, this.includeHillshade);
         this.dialogRef.close();
     }
 
     public checkFit() {
-        if (this.scale === "fit" || !this.data.route) {
+        if (this.scale === "fit") {
             this.warning = null;
             return;
         }
-        const latlngs = this.getLatlngs(this.data.route);
+
+        let latlngs: LatLngAltTime[] = [];
+        if (this.mode === "route" && this.data.route) {
+            latlngs = this.getLatlngs(this.data.route);
+        } else if (this.mode === "all") {
+            const mapBounds = this.mapService.getMapBounds();
+            const allRoutes = this.store.selectSnapshot((s: ApplicationState) => s.routes.present);
+            for (const r of allRoutes.filter(r => r.state !== "Hidden")) {
+                const routeLatlngs = this.getLatlngs(r);
+                const isAnyPointInViewport = routeLatlngs.some(pt => {
+                    return pt.lng >= mapBounds.southWest.lng && pt.lng <= mapBounds.northEast.lng &&
+                        pt.lat >= mapBounds.southWest.lat && pt.lat <= mapBounds.northEast.lat;
+                });
+                if (isAnyPointInViewport) {
+                    latlngs.push(...routeLatlngs);
+                }
+            }
+        }
+
+        if (latlngs.length === 0) {
+            this.warning = null;
+            return;
+        }
+
         const bounds = SpatialService.getBounds(latlngs);
         
         const widthMeters = SpatialService.getDistanceInMeters(
@@ -65,18 +94,25 @@ export class ExportForPrintDialogComponent {
         const heightMm = (heightMeters * 1000) / scaleValue;
 
         const isLandscape = (this.orientation === "landscape") || (this.orientation === "auto" && widthMm > heightMm);
-        const pageWidth = isLandscape ? 297 : 210;
-        const pageHeight = isLandscape ? 210 : 297;
+        const sizes = {
+            A5: { width: 148, height: 210 },
+            A4: { width: 210, height: 297 },
+            A3: { width: 297, height: 420 },
+            Letter: { width: 215.9, height: 279.4 }
+        };
+        const pageDimensions = sizes[this.paperSize];
+        const pageWidth = isLandscape ? pageDimensions.height : pageDimensions.width;
+        const pageHeight = isLandscape ? pageDimensions.width : pageDimensions.height;
 
         // Apply margins for print (e.g., 10mm)
-        if (widthMm > (pageWidth - 20) || heightMm > (pageHeight - 20)) {
+        if (!this.splitPages && (widthMm > (pageWidth - 20) || heightMm > (pageHeight - 20))) {
             this.warning = "The route does not fit in the selected page size at this scale.";
         } else {
             this.warning = null;
         }
     }
 
-    private getLatlngs(routeData: RouteData): LatLngAltTime[] {
+    private getLatlngs(routeData: any): LatLngAltTime[] {
         let latLngs: LatLngAltTime[] = [];
         for (const segment of routeData.segments) {
             latLngs = latLngs.concat(segment.latlngs);

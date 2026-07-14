@@ -471,4 +471,42 @@ export class SpatialService {
             SpatialService.insideBbox(position, [31.350, 30.0817, 31.355, 30.0860]) ||
             SpatialService.insideBbox(position, [35.98, 31.70, 36.02, 31.73]);
     }
+
+    public static calculateGridBounds(totalBounds: Bounds, scale: number, pageDimensionsMm: { width: number, height: number }): Bounds[] {
+        const widthMeters = SpatialService.getDistanceInMeters(
+            { lat: totalBounds.southWest.lat, lng: totalBounds.southWest.lng, alt: 0 },
+            { lat: totalBounds.southWest.lat, lng: totalBounds.northEast.lng, alt: 0 }
+        );
+        const heightMeters = SpatialService.getDistanceInMeters(
+            { lat: totalBounds.southWest.lat, lng: totalBounds.southWest.lng, alt: 0 },
+            { lat: totalBounds.northEast.lat, lng: totalBounds.southWest.lng, alt: 0 }
+        );
+        
+        const pageScaleWidthMeters = (pageDimensionsMm.width * scale) / 1000;
+        const pageScaleHeightMeters = (pageDimensionsMm.height * scale) / 1000;
+        
+        const cols = Math.max(1, Math.ceil(widthMeters / pageScaleWidthMeters));
+        const rows = Math.max(1, Math.ceil(heightMeters / pageScaleHeightMeters));
+        
+        const bounds: Bounds[] = [];
+        
+        const latDelta = (totalBounds.northEast.lat - totalBounds.southWest.lat) / rows;
+        const lngDelta = (totalBounds.northEast.lng - totalBounds.southWest.lng) / cols;
+        
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                bounds.push({
+                    southWest: {
+                        lat: totalBounds.southWest.lat + row * latDelta,
+                        lng: totalBounds.southWest.lng + col * lngDelta
+                    },
+                    northEast: {
+                        lat: totalBounds.southWest.lat + (row + 1) * latDelta,
+                        lng: totalBounds.southWest.lng + (col + 1) * lngDelta
+                    }
+                });
+            }
+        }
+        return bounds;
+    }
 }

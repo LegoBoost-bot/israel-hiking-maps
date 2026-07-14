@@ -2,7 +2,7 @@
 <div mat-dialog-content [dir]="resources.direction">
     <div class="mb-4">
         <label class="block mb-2 text-sm font-medium text-gray-700">What to print</label>
-        <mat-radio-group [(ngModel)]="mode" class="flex flex-col gap-2 black-radio" color="primary">
+        <mat-radio-group [(ngModel)]="mode" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
             <mat-radio-button value="view">Current View</mat-radio-button>
             <mat-radio-button value="all">Fit All Visible Routes</mat-radio-button>
             @if (data.route) {
@@ -10,8 +10,9 @@
             }
         </mat-radio-group>
     </div>
-    <div class="mb-4">
+    <div class="mb-4 flex flex-row gap-4">
         <mat-checkbox [(ngModel)]="includeHillshade" color="primary">Include Hillshade</mat-checkbox>
+        <mat-checkbox [(ngModel)]="splitPages" color="primary">Split Pages</mat-checkbox>
     </div>
     <mat-form-field class="w-full">
         <mat-label>Format</mat-label>
@@ -20,9 +21,18 @@
             <mat-option value="png">PNG</mat-option>
         </mat-select>
     </mat-form-field>
+    <mat-form-field class="w-full">
+        <mat-label>Paper Size</mat-label>
+        <mat-select [(ngModel)]="paperSize" (ngModelChange)="checkFit()">
+            <mat-option value="A5">A5</mat-option>
+            <mat-option value="A4">A4</mat-option>
+            <mat-option value="A3">A3</mat-option>
+            <mat-option value="Letter">Letter</mat-option>
+        </mat-select>
+    </mat-form-field>
     <div class="mb-4">
         <label class="block mb-2 text-sm font-medium text-gray-700">Orientation</label>
-        <mat-radio-group [(ngModel)]="orientation" class="flex flex-row gap-4 mb-4 black-radio" color="primary">
+        <mat-radio-group [(ngModel)]="orientation" class="flex flex-row gap-4 mb-4 black-radio" (ngModelChange)="checkFit()" color="primary">
             <mat-radio-button value="auto">Auto</mat-radio-button>
             <mat-radio-button value="portrait">Portrait</mat-radio-button>
             <mat-radio-button value="landscape">Landscape</mat-radio-button>
