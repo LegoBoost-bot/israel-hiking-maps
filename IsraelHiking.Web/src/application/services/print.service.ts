@@ -1,4 +1,5 @@
 import { inject, Injectable } from "@angular/core";
+import { Map as MapLibreMap } from "maplibre-gl";
 import jsPDF from "jspdf";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
@@ -15,19 +16,11 @@ export class PrintService {
     private readonly runningContextService = inject(RunningContextService);
     private readonly store = inject(Store);
 
-    public async export(format: "pdf" | "png", scale: string, customScale: number, orientation: "portrait" | "landscape" | "auto", paperSize: "A5" | "A4" | "A3" | "Letter", splitPages: boolean, route: RouteData | undefined, mode: "view" | "all" | "route", includeHillshade: boolean) {
+    public async export(format: "pdf" | "png", scale: string, customScale: number, orientation: "portrait" | "landscape" | "auto", route: RouteData | undefined, mode: "view" | "all" | "route", includeHillshade: boolean, splitToPages: boolean) {
         const map = this.mapService.map;
         if (!map) {
             return;
         }
-
-        const sizes = {
-            A5: { width: 148, height: 210 },
-            A4: { width: 210, height: 297 },
-            A3: { width: 297, height: 420 },
-            Letter: { width: 215.9, height: 279.4 }
-        };
-        const paperDimensionsMm = sizes[paperSize];
 
         const originalRouteStates = new Map<string, string>();
         const allRoutes = this.store.selectSnapshot((s: ApplicationState) => s.routes.present);
@@ -56,15 +49,24 @@ export class PrintService {
         const originalWidth = container.style.width;
         const originalHeight = container.style.height;
 
-        let bounds: any;
+        let width = 3508;
+        let height = 2480;
+        let isLandscape = false;
+        if (orientation === "auto") {
+            isLandscape = container.offsetWidth > container.offsetHeight;
+        } else {
+            isLandscape = orientation === "landscape";
+        }
+        if (!isLandscape) {
+            width = 2480;
+            height = 3508;
+        }
 
+        const latlngs: LatLngAltTime[] = [];
         if (mode === "route" && route) {
-            const latlngs = this.getLatlngs(route);
-            bounds = SpatialService.getBounds(latlngs);
+            latlngs.push(...this.getLatlngs(route));
         } else if (mode === "all") {
             const mapBounds = this.mapService.getMapBounds();
-            const latlngs: LatLngAltTime[] = [];
-            const visibleRouteNamesInViewport: string[] = [];
             for (const r of allRoutes.filter(r => r.state !== "Hidden")) {
                 const routeLatlngs = this.getLatlngs(r);
                 const isAnyPointInViewport = routeLatlngs.some(pt => {
@@ -72,61 +74,67 @@ export class PrintService {
                         pt.lat >= mapBounds.southWest.lat && pt.lat <= mapBounds.northEast.lat;
                 });
                 if (isAnyPointInViewport) {
-                    visibleRouteNamesInViewport.push(r.name);
                     latlngs.push(...routeLatlngs);
                 }
             }
-            console.log("Visible route names in viewport for print:", visibleRouteNamesInViewport);
-            if (latlngs.length > 0) {
-                bounds = SpatialService.getBounds(latlngs);
-            }
         }
-
-        const scaleValue = scale === "custom" ? customScale : (scale === "1:50000" ? 50000 : 25000);
-        let isLandscape = false;
-        if (orientation === "auto" && bounds) {
-             isLandscape = (bounds.northEast.lng - bounds.southWest.lng) > (bounds.northEast.lat - bounds.southWest.lat);
-        } else {
-            isLandscape = orientation === "landscape";
-        }
-
-        const pageWidth = isLandscape ? paperDimensionsMm.height : paperDimensionsMm.width;
-        const pageHeight = isLandscape ? paperDimensionsMm.width : paperDimensionsMm.height;
-
-        let grids: any[] = [];
-        if (splitPages && bounds) {
-            grids = SpatialService.calculateGridBounds(bounds, scaleValue, { width: pageWidth, height: pageHeight });
-        } else if (bounds) {
-            grids = [bounds];
-        } else {
-            grids = [this.mapService.getMapBounds()];
-        }
-
-        container.style.width = `${Math.floor(pageWidth * 300 / 25.4)}px`;
-        container.style.height = `${Math.floor(pageHeight * 300 / 25.4)}px`;
-        map.resize();
-
-        const dataUrls: string[] = [];
         
-        for (const gridBounds of grids) {
+        const bounds = latlngs.length > 0 ? SpatialService.getBounds(latlngs) : this.mapService.getMapBounds();
+        
+        container.style.width = `${width}px`;
+        container.style.height = `${height}px`;
+        map.resize();
+        
+        const scaleValue = scale === "fit" ? 25000 : (scale === "custom" ? customScale : (scale === "1:50000" ? 50000 : 25000));
+        const zoom = this.getZoomForScale(scaleValue, map.getCenter().lat);
+
+        const pdf = new jsPDF({
+            orientation: isLandscape ? "landscape" : "portrait",
+            unit: "mm",
+            format: "a4"
+        });
+        
+        if (!splitToPages) {
             if (scale === "fit") {
-                await this.mapService.fitBounds(gridBounds, 50);
+                await this.mapService.fitBounds(bounds, 100);
             } else {
-                const zoom = this.getZoomForScale(scaleValue, (gridBounds.southWest.lat + gridBounds.northEast.lat) / 2);
-                const center = SpatialService.getCenter([gridBounds.southWest, gridBounds.northEast]);
-                map.setCenter([center.lng, center.lat]);
+                map.setCenter([SpatialService.getCenter([bounds.southWest, bounds.northEast]).lng, SpatialService.getCenter([bounds.southWest, bounds.northEast]).lat]);
                 map.setZoom(zoom);
             }
+            await this.waitForIdle(map);
+            pdf.addImage(map.getCanvas().toDataURL("image/png"), "PNG", 0, 0, isLandscape ? 297 : 210, isLandscape ? 210 : 297);
+        } else {
+            const pageMmWidth = isLandscape ? 297 : 210;
+            const pageMmHeight = isLandscape ? 210 : 297;
+            const overlapMm = 15;
+            
+            const pageWidthMeters = (pageMmWidth * scaleValue) / 1000;
+            const pageHeightMeters = (pageMmHeight * scaleValue) / 1000;
+            
+            const totalWidthMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
+            const totalHeightMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
+            
+            const cols = Math.ceil((totalWidthMeters - overlapMm * scaleValue / 1000) / (pageWidthMeters - overlapMm * scaleValue / 1000));
+            const rows = Math.ceil((totalHeightMeters - overlapMm * scaleValue / 1000) / (pageHeightMeters - overlapMm * scaleValue / 1000));
+            
+            const shiftX = (((cols * (pageWidthMeters - overlapMm * scaleValue / 1000) + overlapMm * scaleValue / 1000) - totalWidthMeters) / 2);
+            const shiftY = (((rows * (pageHeightMeters - overlapMm * scaleValue / 1000) + overlapMm * scaleValue / 1000) - totalHeightMeters) / 2);
 
-            await new Promise<void>(resolve => {
-                if (typeof (map as any).isIdle === "function" && (map as any).isIdle()) {
-                    resolve();
-                } else {
-                    map.once("idle", resolve);
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const centerLat = bounds.southWest.lat + (totalHeightMeters - (r * (pageHeightMeters - overlapMm * scaleValue / 1000)) - (pageHeightMeters / 2) + shiftY) / 111320;
+                    const centerLng = bounds.southWest.lng + (c * (pageWidthMeters - overlapMm * scaleValue / 1000) + (pageWidthMeters / 2) - shiftX) / (111320 * Math.cos(bounds.southWest.lat * Math.PI / 180));
+                    
+                    map.setCenter([centerLng, centerLat]);
+                    map.setZoom(zoom);
+                    await this.waitForIdle(map);
+                    
+                    if (r > 0 || c > 0) pdf.addPage();
+                    const canvas = map.getCanvas();
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+                    pdf.addImage(dataUrl, "JPEG", 0, 0, isLandscape ? 297 : 210, isLandscape ? 210 : 297, undefined, "FAST");
                 }
-            });
-
-            dataUrls.push(map.getCanvas().toDataURL("image/png"));
+            }
         }
 
         container.style.width = originalWidth;
@@ -143,37 +151,16 @@ export class PrintService {
             map.setLayoutProperty(hillshadeLayer.id, "visibility", hillshadeLayer.visibility as any);
         }
 
-        const fileName = `map_${new Date().getTime()}.${format}`;
-
+        const fileName = `map_${new Date().getTime()}.pdf`;
         if (this.runningContextService.isCapacitor) {
             const savedFile = await Filesystem.writeFile({
                 path: fileName,
-                data: format === "pdf" ? await this.getPdfBase64(dataUrls, isLandscape, paperSize) : dataUrls[0].split(",")[1],
+                data: pdf.output("datauristring").split(",")[1],
                 directory: Directory.Cache
             });
-            await Share.share({
-                url: savedFile.uri
-            });
+            await Share.share({ url: savedFile.uri });
         } else {
-            if (format === "pdf") {
-                const pdf = new jsPDF({
-                    orientation: isLandscape ? "landscape" : "portrait",
-                    unit: "mm",
-                    format: paperSize
-                });
-                for (let i = 0; i < dataUrls.length; i++) {
-                    if (i > 0) {
-                        pdf.addPage();
-                    }
-                    pdf.addImage(dataUrls[i], "PNG", 0, 0, isLandscape ? paperDimensionsMm.height : paperDimensionsMm.width, isLandscape ? paperDimensionsMm.width : paperDimensionsMm.height);
-                }
-                pdf.save(fileName);
-            } else {
-                const link = document.createElement("a");
-                link.href = dataUrls[0];
-                link.download = fileName;
-                link.click();
-            }
+            pdf.save(fileName);
         }
     }
 
@@ -195,28 +182,23 @@ export class PrintService {
         return latLngs;
     }
 
-    private async getPdfBase64(imageDatas: string[], isLandscape: boolean, paperSize: string): Promise<string> {
+    private async waitForIdle(map: MapLibreMap): Promise<void> {
+        return new Promise<void>(resolve => {
+            if (typeof (map as any).isIdle === "function" && (map as any).isIdle()) {
+                resolve();
+            } else {
+                map.once("idle", resolve);
+            }
+        });
+    }
+
+    private async getPdfBase64(imageData: string, isLandscape: boolean): Promise<string> {
         const pdf = new jsPDF({
             orientation: isLandscape ? "landscape" : "portrait",
             unit: "mm",
-            format: paperSize as any
+            format: "a4"
         });
-        const sizes = {
-            A5: { width: 148, height: 210 },
-            A4: { width: 210, height: 297 },
-            A3: { width: 297, height: 420 },
-            Letter: { width: 215.9, height: 279.4 }
-        };
-        const paperDimensionsMm = sizes[paperSize as keyof typeof sizes];
-        const pageWidth = isLandscape ? paperDimensionsMm.height : paperDimensionsMm.width;
-        const pageHeight = isLandscape ? paperDimensionsMm.width : paperDimensionsMm.height;
-        
-        for (let i = 0; i < imageDatas.length; i++) {
-            if (i > 0) {
-                pdf.addPage();
-            }
-            pdf.addImage(imageDatas[i], "PNG", 0, 0, pageWidth, pageHeight);
-        }
+        pdf.addImage(imageData, "PNG", 0, 0, isLandscape ? 297 : 210, isLandscape ? 210 : 297);
         return pdf.output("datauristring").split(",")[1];
     }
 }

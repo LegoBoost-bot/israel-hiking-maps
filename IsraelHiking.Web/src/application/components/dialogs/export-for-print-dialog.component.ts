@@ -37,14 +37,13 @@ export class ExportForPrintDialogComponent {
     public scale: "fit" | "1:50000" | "1:25000" | "custom" = "fit";
     public customScale = 25000;
     public orientation: "portrait" | "landscape" | "auto" = "auto";
-    public paperSize: "A5" | "A4" | "A3" | "Letter" = "A4";
-    public splitPages = false;
     public includeHillshade = true;
     public warning: string | null = null;
     public mode: "view" | "all" | "route" = this.data.route ? "route" : "view";
+    public splitToPages = false;
 
     public async export() {
-        await this.printService.export(this.format, this.scale, this.customScale, this.orientation, this.paperSize, this.splitPages, this.mode === "route" ? this.data.route : undefined, this.mode, this.includeHillshade);
+        await this.printService.export(this.format, this.scale, this.customScale, this.orientation, this.mode === "route" ? this.data.route : undefined, this.mode, this.includeHillshade, this.splitToPages);
         this.dialogRef.close();
     }
 
@@ -94,18 +93,11 @@ export class ExportForPrintDialogComponent {
         const heightMm = (heightMeters * 1000) / scaleValue;
 
         const isLandscape = (this.orientation === "landscape") || (this.orientation === "auto" && widthMm > heightMm);
-        const sizes = {
-            A5: { width: 148, height: 210 },
-            A4: { width: 210, height: 297 },
-            A3: { width: 297, height: 420 },
-            Letter: { width: 215.9, height: 279.4 }
-        };
-        const pageDimensions = sizes[this.paperSize];
-        const pageWidth = isLandscape ? pageDimensions.height : pageDimensions.width;
-        const pageHeight = isLandscape ? pageDimensions.width : pageDimensions.height;
+        const pageWidth = isLandscape ? 297 : 210;
+        const pageHeight = isLandscape ? 210 : 297;
 
         // Apply margins for print (e.g., 10mm)
-        if (!this.splitPages && (widthMm > (pageWidth - 20) || heightMm > (pageHeight - 20))) {
+        if (widthMm > (pageWidth - 20) || heightMm > (pageHeight - 20)) {
             this.warning = "The route does not fit in the selected page size at this scale.";
         } else {
             this.warning = null;
