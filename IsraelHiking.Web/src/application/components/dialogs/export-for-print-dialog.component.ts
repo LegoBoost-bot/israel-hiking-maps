@@ -129,22 +129,7 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
 
         const bounds = SpatialService.getBounds(latlngs);
         
-        const widthMeters = SpatialService.getDistanceInMeters(
-            { lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 },
-            { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 }
-        );
-        const heightMeters = SpatialService.getDistanceInMeters(
-            { lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 },
-            { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 }
-        );
-        
-        const scaleValue = this.scale === "custom" ? this.customScale : (this.scale === "1:50000" ? 50000 : 25000);
-        
-        const widthMm = (widthMeters * 1000) / scaleValue;
-        const heightMm = (heightMeters * 1000) / scaleValue;
-
-        const isLandscape = (this.orientation === "landscape") || (this.orientation === "auto" && widthMm > heightMm);
-        this.pages = this.printService.getPagesCount(scaleValue, isLandscape, bounds);
+        this.pages = this.printService.getPagesCount(this.scale, this.customScale, this.orientation, bounds);
 
         // Apply margins for print (e.g., 10mm)
         if (!this.splitToPages && (this.pages ?? 0) > 1) {
@@ -197,29 +182,12 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
             let printBounds: LngLatBounds;
 
             if (this.scale !== "fit") {
-                const scaleValue = this.scale === "custom" ? this.customScale : (this.scale === "1:50000" ? 50000 : 25000);
-                const widthMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
-                const heightMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
+                const params = this.printService.getPrintParams(this.scale, this.customScale, this.orientation, bounds, this.splitToPages);
                 
-                const isLandscape = (this.orientation === "landscape") || (this.orientation === "auto" && widthMeters > heightMeters);
-                const pageMmWidth = isLandscape ? 297 : 210;
-                const pageMmHeight = isLandscape ? 210 : 297;
-                const overlapMm = 15;
-                
-                const pageWidthMeters = (pageMmWidth * scaleValue) / 1000;
-                const pageHeightMeters = (pageMmHeight * scaleValue) / 1000;
-                const overlapMeters = (overlapMm * scaleValue) / 1000;
-                
-                const cols = this.splitToPages ? Math.ceil((widthMeters - overlapMeters) / (pageWidthMeters - overlapMeters)) : 1;
-                const rows = this.splitToPages ? Math.ceil((heightMeters - overlapMeters) / (pageHeightMeters - overlapMeters)) : 1;
-                
-                const totalWidthMeters = this.splitToPages ? (cols * (pageWidthMeters - overlapMeters) + overlapMeters) : pageWidthMeters;
-                const totalHeightMeters = this.splitToPages ? (rows * (pageHeightMeters - overlapMeters) + overlapMeters) : pageHeightMeters;
-
                 const center = SpatialService.getCenter([bounds.southWest, bounds.northEast]);
                 
-                const latDelta = (totalHeightMeters / 2) / 111320;
-                const lngDelta = (totalWidthMeters / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
+                const latDelta = (params.totalHeightMeters / 2) / 111320;
+                const lngDelta = (params.totalWidthMeters / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
                 
                 printBounds = new LngLatBounds(
                     [center.lng - lngDelta, center.lat - latDelta],
@@ -294,34 +262,17 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
 
             // Add page rectangles
             if (this.scale !== "fit" && this.splitToPages) {
-                const scaleValue = this.scale === "custom" ? this.customScale : (this.scale === "1:50000" ? 50000 : 25000);
-                const widthMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
-                const heightMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
-                
-                const isLandscape = (this.orientation === "landscape") || (this.orientation === "auto" && widthMeters > heightMeters);
-                const pageMmWidth = isLandscape ? 297 : 210;
-                const pageMmHeight = isLandscape ? 210 : 297;
-                const overlapMm = 15;
-                
-                const pageWidthMeters = (pageMmWidth * scaleValue) / 1000;
-                const pageHeightMeters = (pageMmHeight * scaleValue) / 1000;
-                const overlapMeters = (overlapMm * scaleValue) / 1000;
-                
-                const cols = Math.ceil((widthMeters - overlapMeters) / (pageWidthMeters - overlapMeters));
-                const rows = Math.ceil((heightMeters - overlapMeters) / (pageHeightMeters - overlapMeters));
-                
-                const shiftX = (((cols * (pageWidthMeters - overlapMeters) + overlapMeters) - widthMeters) / 2);
-                const shiftY = (((rows * (pageHeightMeters - overlapMeters) + overlapMeters) - heightMeters) / 2);
+                const params = this.printService.getPrintParams(this.scale, this.customScale, this.orientation, bounds, this.splitToPages);
 
-                for (let r = 0; r < rows; r++) {
-                    for (let c = 0; c < cols; c++) {
-                        const centerLat = bounds.southWest.lat + (heightMeters - (r * (pageHeightMeters - overlapMeters)) - (pageHeightMeters / 2) + shiftY) / 111320;
-                        const centerLng = bounds.southWest.lng + (c * (pageWidthMeters - overlapMeters) + (pageWidthMeters / 2) - shiftX) / (111320 * Math.cos(bounds.southWest.lat * Math.PI / 180));
+                for (let r = 0; r < params.rows; r++) {
+                    for (let c = 0; c < params.cols; c++) {
+                        const centerLat = bounds.southWest.lat + (params.totalHeightMeters - (r * (params.pageHeightMeters - params.overlapMm * params.scaleValue / 1000)) - (params.pageHeightMeters / 2) + params.shiftY) / 111320;
+                        const centerLng = bounds.southWest.lng + (c * (params.pageWidthMeters - params.overlapMm * params.scaleValue / 1000) + (params.pageWidthMeters / 2) - params.shiftX) / (111320 * Math.cos(bounds.southWest.lat * Math.PI / 180));
                         
-                        const latDelta = (pageHeightMeters / 2) / 111320;
-                        const lngDelta = (pageWidthMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
+                        const latDelta = (params.pageHeightMeters / 2) / 111320;
+                        const lngDelta = (params.pageWidthMeters / 2) / (111320 * Math.cos(centerLat * Math.PI / 180));
                         
-                        this.map.addSource(`page-${r * cols + c}`, {
+                        this.map.addSource(`page-${r * params.cols + c}`, {
                             type: "geojson",
                             data: {
                                 type: "Feature",
@@ -339,9 +290,9 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
                             }
                         });
                         this.map.addLayer({
-                            id: `page-${r * cols + c}`,
+                            id: `page-${r * params.cols + c}`,
                             type: "line",
-                            source: `page-${r * cols + c}`,
+                            source: `page-${r * params.cols + c}`,
                             paint: {
                                 "line-color": "red",
                                 "line-width": 2,
@@ -352,17 +303,11 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
                 }
             } else if (this.scale !== "fit" && !this.splitToPages) {
                 // Show single page boundary
-                const scaleValue = this.scale === "custom" ? this.customScale : (this.scale === "1:50000" ? 50000 : 25000);
-                const isLandscape = (this.orientation === "landscape") || (this.orientation === "auto" && (bounds.northEast.lng - bounds.southWest.lng) > (bounds.northEast.lat - bounds.southWest.lat));
-                const pageMmWidth = isLandscape ? 297 : 210;
-                const pageMmHeight = isLandscape ? 210 : 297;
-                
-                const pageWidthMeters = (pageMmWidth * scaleValue) / 1000;
-                const pageHeightMeters = (pageMmHeight * scaleValue) / 1000;
+                const params = this.printService.getPrintParams(this.scale, this.customScale, this.orientation, bounds, false);
 
                 const center = SpatialService.getCenter([bounds.southWest, bounds.northEast]);
-                const latDelta = (pageHeightMeters / 2) / 111320;
-                const lngDelta = (pageWidthMeters / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
+                const latDelta = (params.pageHeightMeters / 2) / 111320;
+                const lngDelta = (params.pageWidthMeters / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
                 
                 this.map.addSource("page-0", {
                     type: "geojson",
