@@ -16,7 +16,25 @@ export class PrintService {
     private readonly runningContextService = inject(RunningContextService);
     private readonly store = inject(Store);
 
-    public async export(format: "pdf" | "png", scale: string, customScale: number, orientation: "portrait" | "landscape" | "auto", route: RouteData | undefined, mode: "view" | "all" | "route", includeHillshade: boolean, splitToPages: boolean) {
+    public getPagesCount(scaleValue: number, isLandscape: boolean, bounds: { southWest: { lat: number, lng: number }, northEast: { lat: number, lng: number } }): number {
+        const marginMm = 10;
+        const pageMmWidth = (isLandscape ? 297 : 210) - 2 * marginMm;
+        const pageMmHeight = (isLandscape ? 210 : 297) - 2 * marginMm;
+        const overlapMm = 15;
+        
+        const pageWidthMeters = (pageMmWidth * scaleValue) / 1000;
+        const pageHeightMeters = (pageMmHeight * scaleValue) / 1000;
+        
+        const totalWidthMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
+        const totalHeightMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
+        
+        const cols = Math.ceil((totalWidthMeters - overlapMm * scaleValue / 1000) / (pageWidthMeters - overlapMm * scaleValue / 1000));
+        const rows = Math.ceil((totalHeightMeters - overlapMm * scaleValue / 1000) / (pageHeightMeters - overlapMm * scaleValue / 1000));
+        
+        return cols * rows;
+    }
+
+    public async export(format: "pdf" | "png", scale: string, customScale: number, orientation: "portrait" | "landscape" | "auto", route: RouteData | undefined, mode: "view" | "all" | "route", includeHillshade: boolean, splitToPages: boolean, excludedRouteIds: string[] = []) {
         const map = this.mapService.map;
         if (!map) {
             return;
@@ -43,6 +61,13 @@ export class PrintService {
                     this.store.dispatch(new ChangeRouteStateAction(r.id, "Hidden"));
                 }
             }
+        } else if (mode === "all") {
+            for (const r of allRoutes) {
+                if (excludedRouteIds.includes(r.id)) {
+                    originalRouteStates.set(r.id, r.state);
+                    this.store.dispatch(new ChangeRouteStateAction(r.id, "Hidden"));
+                }
+            }
         }
 
         const container = map.getContainer();
@@ -51,11 +76,9 @@ export class PrintService {
 
         let width = 3508;
         let height = 2480;
-        let isLandscape = false;
+        let isLandscape = orientation === "landscape";
         if (orientation === "auto") {
             isLandscape = container.offsetWidth > container.offsetHeight;
-        } else {
-            isLandscape = orientation === "landscape";
         }
         if (!isLandscape) {
             width = 2480;
@@ -67,7 +90,7 @@ export class PrintService {
             latlngs.push(...this.getLatlngs(route));
         } else if (mode === "all") {
             const mapBounds = this.mapService.getMapBounds();
-            for (const r of allRoutes.filter(r => r.state !== "Hidden")) {
+            for (const r of allRoutes.filter(r => r.state !== "Hidden" && !excludedRouteIds.includes(r.id))) {
                 const routeLatlngs = this.getLatlngs(r);
                 const isAnyPointInViewport = routeLatlngs.some(pt => {
                     return pt.lng >= mapBounds.southWest.lng && pt.lng <= mapBounds.northEast.lng &&
@@ -102,10 +125,14 @@ export class PrintService {
                 map.setZoom(zoom);
             }
             await this.waitForIdle(map);
-            pdf.addImage(map.getCanvas().toDataURL("image/png"), "PNG", 0, 0, isLandscape ? 297 : 210, isLandscape ? 210 : 297);
+            const marginMm = 10;
+            const pageMmWidth = (isLandscape ? 297 : 210) - 2 * marginMm;
+            const pageMmHeight = (isLandscape ? 210 : 297) - 2 * marginMm;
+            pdf.addImage(map.getCanvas().toDataURL("image/png"), "PNG", marginMm, marginMm, pageMmWidth, pageMmHeight);
         } else {
-            const pageMmWidth = isLandscape ? 297 : 210;
-            const pageMmHeight = isLandscape ? 210 : 297;
+            const marginMm = 10;
+            const pageMmWidth = (isLandscape ? 297 : 210) - 2 * marginMm;
+            const pageMmHeight = (isLandscape ? 210 : 297) - 2 * marginMm;
             const overlapMm = 15;
             
             const pageWidthMeters = (pageMmWidth * scaleValue) / 1000;
@@ -132,7 +159,7 @@ export class PrintService {
                     if (r > 0 || c > 0) pdf.addPage();
                     const canvas = map.getCanvas();
                     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-                    pdf.addImage(dataUrl, "JPEG", 0, 0, isLandscape ? 297 : 210, isLandscape ? 210 : 297, undefined, "FAST");
+                    pdf.addImage(dataUrl, "JPEG", marginMm, marginMm, pageMmWidth, pageMmHeight, undefined, "FAST");
                 }
             }
         }
@@ -141,7 +168,7 @@ export class PrintService {
         container.style.height = originalHeight;
         map.resize();
 
-        if (route) {
+        if (route || mode === "all") {
             for (const [id, state] of originalRouteStates) {
                 this.store.dispatch(new ChangeRouteStateAction(id, state as any));
             }

@@ -1,46 +1,60 @@
 <div mat-dialog-title class="mt-4">Print</div>
-<div mat-dialog-content [dir]="resources.direction">
-    <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium text-gray-700">What to print</label>
-        <mat-radio-group [(ngModel)]="mode" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
-            <mat-radio-button value="view">Current View</mat-radio-button>
-            <mat-radio-button value="all">Fit All Visible Routes</mat-radio-button>
+<div mat-dialog-content [dir]="resources.direction" class="flex flex-col gap-4" style="width: 80vw; max-width: 1000px;">
+    <div class="bg-gray-100 rounded-lg p-2 h-[300px]">
+        <div id="print-preview-map" class="w-full h-full"></div>
+    </div>
+    <div class="overflow-y-auto">
+        <div class="mb-4">
             @if (data.route) {
-            <mat-radio-button value="route">Route: {{data.route.name}}</mat-radio-button>
+            <p class="font-bold mb-2">Print route: {{data.route.name}}</p>
+            } @else {
+            <label class="block mb-2 text-sm font-medium text-gray-700">What to print</label>
+            <mat-radio-group [(ngModel)]="mode" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
+                <mat-radio-button value="view">Current View</mat-radio-button>
+                <mat-radio-button value="all">Fit All Visible Routes</mat-radio-button>
+            </mat-radio-group>
+            @if (mode === 'all') {
+            <div class="mt-2 ml-4 flex flex-col gap-1">
+                @for (route of routes; track route.id) {
+                <mat-checkbox [(ngModel)]="route.selected" (ngModelChange)="checkFit()" color="primary">{{route.name}}</mat-checkbox>
+                }
+            </div>
             }
-        </mat-radio-group>
-    </div>
-    <div class="mb-4">
-        <mat-checkbox [(ngModel)]="includeHillshade" color="primary">Include Hillshade</mat-checkbox>
-        <mat-checkbox [(ngModel)]="splitToPages" color="primary">Split to multiple pages</mat-checkbox>
-    </div>
-    <mat-form-field class="w-full">
-        <mat-label>Format</mat-label>
-        <mat-select [(ngModel)]="format">
-            <mat-option value="pdf">PDF</mat-option>
-            <mat-option value="png">PNG</mat-option>
-        </mat-select>
-    </mat-form-field>
-    <div class="mb-4">
-        <label class="block mb-2 text-sm font-medium text-gray-700">Orientation</label>
-        <mat-radio-group [(ngModel)]="orientation" class="flex flex-row gap-4 mb-4 black-radio" color="primary">
-            <mat-radio-button value="auto">Auto</mat-radio-button>
-            <mat-radio-button value="portrait">Portrait</mat-radio-button>
-            <mat-radio-button value="landscape">Landscape</mat-radio-button>
-        </mat-radio-group>
-        <label class="block mb-2 text-sm font-medium text-gray-700">Scale</label>
-        <mat-radio-group [(ngModel)]="scale" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
-            <mat-radio-button value="fit">Fit to content</mat-radio-button>
-            <mat-radio-button value="1:50000">1:50,000</mat-radio-button>
-            <mat-radio-button value="1:25000">1:25,000</mat-radio-button>
-            <mat-radio-button value="custom">1:
-                <mat-form-field class="w-24">
-                    <input matInput type="number" [(ngModel)]="customScale" [disabled]="scale !== 'custom'" (ngModelChange)="checkFit()" />
-                </mat-form-field>
-            </mat-radio-button>
-        </mat-radio-group>
-        @if (warning) {
-        <p class="text-red-500 text-sm mt-2">{{warning}}</p>
+            }
+        </div>
+        <div class="mb-4">
+            <mat-checkbox [(ngModel)]="includeHillshade" color="primary">Include Hillshade</mat-checkbox>
+        </div>
+        <mat-form-field class="w-full">
+            <mat-label>Format</mat-label>
+            <mat-select [(ngModel)]="format">
+                <mat-option value="pdf">PDF</mat-option>
+                <mat-option value="png">PNG</mat-option>
+            </mat-select>
+        </mat-form-field>
+        @if (format === "pdf") {
+        <div class="mb-4">
+            <mat-checkbox [(ngModel)]="splitToPages" color="primary" (ngModelChange)="checkFit()">Split to multiple pages</mat-checkbox>
+            @if (splitToPages && pages) {
+                <p class="text-sm text-gray-600">Total pages: {{pages}}</p>
+            }
+        </div>
+        <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-gray-700">Scale</label>
+            <mat-radio-group [(ngModel)]="scale" class="flex flex-col gap-2 black-radio" (ngModelChange)="checkFit()" color="primary">
+                <mat-radio-button value="fit">Fit to content</mat-radio-button>
+                <mat-radio-button value="1:50000">1:50,000</mat-radio-button>
+                <mat-radio-button value="1:25000">1:25,000</mat-radio-button>
+                <mat-radio-button value="custom">1:
+                    <mat-form-field class="w-24">
+                        <input matInput type="number" [(ngModel)]="customScale" [disabled]="scale !== 'custom'" (ngModelChange)="checkFit()" />
+                    </mat-form-field>
+                </mat-radio-button>
+            </mat-radio-group>
+            @if (warning) {
+            <p class="text-red-500 text-sm mt-2">{{warning}}</p>
+            }
+        </div>
         }
     </div>
 </div>

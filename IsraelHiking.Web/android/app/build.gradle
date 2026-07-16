@@ -8,7 +8,7 @@ android {
         exclude 'build-data.properties'
     }
     defaultConfig {
-        applicationId "com.mapeak"
+        applicationId 'com.schreiber.mapeak'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 921000
