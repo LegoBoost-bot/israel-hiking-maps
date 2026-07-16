@@ -58,30 +58,57 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
     private var mapLibreMapInstance: MapLibreMap? = null
     private var scaleAnimator: Animator? = null
     private var routes: List<CarRouteData> = emptyList()
-    private var lastUserInteractionMs: Long = 0L
+    private var lastUserInteraction: Long = 0L
     private var lastSavedZoom: Double = Double.NaN
     private var visibleArea: Rect? = null
     private var nightMode: Boolean = carContext.isDarkMode
 
-    fun scrollBy(x: Float, y: Float) {
-        lastUserInteractionMs = System.currentTimeMillis()
-        mapLibreMapInstance?.scrollBy(-x, -y, 0)
+    fun scrollBy(dx: Float, dy: Float) {
+        lastUserInteraction = System.currentTimeMillis()
+        mapLibreMapInstance?.scrollBy(-dx, -dy, 0)
     }
 
     fun recenter() {
-        lastUserInteractionMs = 0L
+        lastUserInteraction = 0L
         currentLocation()?.let { centerOnLocation(it) }
     }
 
+    /**
+     * Centers the map on [location], pushing the GPS dot into the bottom third of the visible area
+     * so what's ahead stays in view and the dot can't slip under another app docked on the Android
+     * Auto surface. Bearing rotates the map; the zoom follows the current speed (see [zoomForSpeed]
+     * ).
+     */
     private fun centerOnLocation(location: Location) {
         val bearing = if (location.hasBearing()) location.bearing.toDouble() else 0.0
         val view = mapViewInstance ?: return
-        // Push the GPS dot into the bottom third of the visible area so what's ahead stays in view
-        // and the dot can't slip under another app docked on the Android Auto surface.
         val area = visibleArea?.takeIf { !it.isEmpty } ?: Rect(0, 0, view.width, view.height)
         val anchorX = area.exactCenterX()
         val anchorY = area.exactCenterY() + area.height() / 6f
-        setCenter(location.latitude, location.longitude, bearing, anchorX, anchorY)
+        center(
+                location.latitude,
+                location.longitude,
+                bearing,
+                anchorX,
+                anchorY,
+                zoomForSpeed(location)
+        )
+    }
+
+    /**
+     * Waze-like speed-adaptive zoom: the faster we go, the further out we zoom so more of the road
+     * ahead stays visible. Returns null when the fix has no speed (stationary/just acquired) so the
+     * current zoom is left untouched. Like centering, this only runs from [handleLocationUpdate]
+     * once the manual-interaction suppression window has elapsed, so a manual pinch/pan is
+     * respected.
+     */
+    private fun zoomForSpeed(location: Location): Double? {
+        if (!location.hasSpeed()) return null
+        val t =
+                ((location.speed - SPEED_MIN_MPS) / (SPEED_MAX_MPS - SPEED_MIN_MPS))
+                        .toDouble()
+                        .coerceIn(0.0, 1.0)
+        return ZOOM_AT_LOW_SPEED + (ZOOM_AT_HIGH_SPEED - ZOOM_AT_LOW_SPEED) * t
     }
 
     fun onVisibleAreaChanged(area: Rect) {
@@ -103,7 +130,7 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
     private fun handleLocationUpdate() {
         mapLibreMapInstance?.getStyle { style: Style? -> style?.let { renderGpsLocation(it) } }
         val location = currentLocation() ?: return
-        if (System.currentTimeMillis() - lastUserInteractionMs >= PAN_SUPPRESSION_MS) {
+        if (System.currentTimeMillis() - lastUserInteraction >= PAN_SUPPRESSION_MS) {
             centerOnLocation(location)
         }
     }
@@ -149,12 +176,23 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
         }
     }
 
-    fun setCenter(lat: Double, lng: Double, bearing: Double, anchorX: Float, anchorY: Float) {
+    /**
+     * Eases the camera so that [lat]/[lng] appears at screen ([anchorX], [anchorY]) — the camera
+     * target normally lands at the view's geometric center, so the target is shifted to compensate.
+     * Applies [bearing], and the optional [zoom] is folded into the same ease (leaving it null
+     * keeps the current zoom) so the speed zoom never fights the centering animation.
+     */
+    fun center(
+            lat: Double,
+            lng: Double,
+            bearing: Double,
+            anchorX: Float,
+            anchorY: Float,
+            zoom: Double? = null
+    ) {
         val map = mapLibreMapInstance ?: return
         val view = mapViewInstance ?: return
         val projection = map.projection
-        // Camera target lands at the view's geometric center. Shift it so the requested lat/lng
-        // appears at (anchorX, anchorY) instead.
         val currentScreen = projection.toScreenLocation(LatLng(lat, lng))
         val targetScreen =
                 PointF(
@@ -162,8 +200,9 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
                         currentScreen.y - (anchorY - view.height / 2f)
                 )
         val newTarget = projection.fromScreenLocation(targetScreen)
-        val nextPosition = CameraPosition.Builder().target(newTarget).bearing(bearing).build()
-        map.easeCamera(newCameraPosition(nextPosition), CAMERA_EASE_DURATION_MS)
+        val builder = CameraPosition.Builder().target(newTarget).bearing(bearing)
+        zoom?.let { builder.zoom(it) }
+        map.easeCamera(newCameraPosition(builder.build()), CAMERA_EASE_DURATION_MS)
     }
 
     private fun addLocationLayers(style: Style) {
@@ -264,7 +303,24 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
                         addProperty("strokeColor", "white")
                     }
                 }
-        return listOf(routeFeature, startPointFeature, endPointFeature)
+        val markerColor = route.color ?: ROUTE_ARROW_FALLBACK_COLOR
+        val markerFeatures: List<Feature> =
+                route.markers.map { marker: CarMarkerData ->
+                    Feature.fromGeometry(
+                                    Point.fromLngLat(
+                                            marker.lngLat.longitude,
+                                            marker.lngLat.latitude
+                                    )
+                            )
+                            .apply {
+                                properties()!!.apply {
+                                    addProperty("color", "transparent")
+                                    addProperty("strokeColor", markerColor)
+                                    addProperty("title", marker.title)
+                                }
+                            }
+                }
+        return listOf(routeFeature, startPointFeature, endPointFeature) + markerFeatures
     }
 
     /**
@@ -343,14 +399,46 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
                     )
                 }
 
+        val routePointsCasingLayer =
+                CircleLayer(ROUTE_POINTS_CASING_LAYER_ID, ROUTE_SOURCE_ID).apply {
+                    setFilter(isPoint)
+                    setProperties(
+                            PropertyFactory.circleColor("transparent"),
+                            PropertyFactory.circleRadius(10f),
+                            PropertyFactory.circleStrokeColor("white"),
+                            PropertyFactory.circleStrokeOpacity(0.5f),
+                            PropertyFactory.circleStrokeWidth(1f)
+                    )
+                }
+
+        val routeMarkerLabelsLayer =
+                SymbolLayer(ROUTE_MARKER_LABELS_LAYER_ID, ROUTE_SOURCE_ID).apply {
+                    setFilter(isPoint)
+                    setProperties(
+                            PropertyFactory.textField(Expression.get("title")),
+                            PropertyFactory.textFont(arrayOf("Noto Sans Regular")),
+                            PropertyFactory.textSize(12f),
+                            PropertyFactory.textColor(Expression.get("strokeColor")),
+                            PropertyFactory.textHaloColor("white"),
+                            PropertyFactory.textHaloWidth(1.5f),
+                            PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
+                            PropertyFactory.textOffset(arrayOf(0f, 0.7f)),
+                            PropertyFactory.textOptional(true)
+                    )
+                }
+
         if (style.getLayer(LAYERING_ANCHOR_ID) != null) {
             style.addLayerBelow(routeLayer, LAYERING_ANCHOR_ID)
             style.addLayerAbove(routeArrowsLayer, ROUTE_LAYER_ID)
             style.addLayerAbove(routePointsLayer, ROUTE_ARROWS_LAYER_ID)
+            style.addLayerAbove(routePointsCasingLayer, ROUTE_POINTS_LAYER_ID)
+            style.addLayerAbove(routeMarkerLabelsLayer, ROUTE_POINTS_CASING_LAYER_ID)
         } else {
             style.addLayer(routeLayer)
             style.addLayer(routeArrowsLayer)
             style.addLayer(routePointsLayer)
+            style.addLayer(routePointsCasingLayer)
+            style.addLayer(routeMarkerLabelsLayer)
         }
     }
 
@@ -391,7 +479,7 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
     }
 
     fun onScale(focusX: Float, focusY: Float, scaleFactor: Float) {
-        lastUserInteractionMs = System.currentTimeMillis()
+        lastUserInteraction = System.currentTimeMillis()
         val focal = PointF(focusX, focusY)
         when (scaleFactor) {
             DOUBLE_CLICK_FACTOR -> {
@@ -413,11 +501,10 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
     @MainThread
     fun setupMap(pixelRatio: Float): View {
         MapLibre.getInstance(carContext)
-        HttpRequestUtil.setOkHttpClient(
-                OkHttpClient.Builder()
-                        .addInterceptor(SliceProtocolInterceptor(PmTilesService(carContext)))
-                        .build()
-        )
+        val sliceInterceptor = SliceProtocolInterceptor(PmTilesService(carContext))
+        val tileHttpClient = OkHttpClient.Builder().addInterceptor(sliceInterceptor).build()
+        sliceInterceptor.contoursProvider = CarContourTilesProvider(tileHttpClient)
+        HttpRequestUtil.setOkHttpClient(tileHttpClient)
         routes = CarRouteData.listFromJson(store.load(CarStoreKeys.ROUTE))
 
         val mapView = createMapViewInstance(pixelRatio).apply { onStart() }
@@ -517,12 +604,12 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
      * Android for Cars requires day and night rendering. The host themes the template chrome
      * (action strips, travel-estimate card) automatically; for our own MapLibre surface we darken
      * the land background and the large area fills when the car is in dark mode. Re-applied
-     * whenever the style reloads (see setStyle).
+     * whenever the style reloads (see setStyle); the style is reloaded here so that switching back
+     * to day mode restores the original colors cleanly.
      */
     fun setNightMode(enabled: Boolean) {
         if (nightMode == enabled) return
         nightMode = enabled
-        // Reload the style so day mode restores the original colors cleanly.
         setStyle(store.loadString(CarStoreKeys.STYLE))
     }
 
@@ -581,6 +668,8 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
         private const val ROUTE_LAYER_ID = "planned-route-layer"
         private const val ROUTE_ARROWS_LAYER_ID = "planned-route-arrows-layer"
         private const val ROUTE_POINTS_LAYER_ID = "planned-route-points-layer"
+        private const val ROUTE_POINTS_CASING_LAYER_ID = "planned-route-points-casing-layer"
+        private const val ROUTE_MARKER_LABELS_LAYER_ID = "planned-route-marker-labels-layer"
         private const val ROUTE_START_COLOR = "#43a047"
         private const val ROUTE_END_COLOR = "red"
         private const val ROUTE_ARROW_ICON_IMAGE = "arrow"
@@ -599,7 +688,10 @@ class CarMapContainer(private val carContext: CarContext) : CapacitorStore.Liste
         private const val BW_LUMINANCE_THRESHOLD = 0.1791288
         private const val CIRCLE_STEPS = 64
         private const val DEFAULT_ZOOM = 14f
-        // Cold-install fallback so the map never opens at (0, 0); see loadLastKnownLocation.
+        private const val SPEED_MIN_MPS = 0.0
+        private const val SPEED_MAX_MPS = 30.0
+        private const val ZOOM_AT_LOW_SPEED = 16.5
+        private const val ZOOM_AT_HIGH_SPEED = 14.0
         private const val LAST_KNOWN_PROVIDER = "saved"
         private const val DEFAULT_LAT = 51.5074
         private const val DEFAULT_LNG = -0.1278

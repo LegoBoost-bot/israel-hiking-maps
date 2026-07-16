@@ -20,7 +20,7 @@ import { SecuredImageComponent } from "../secured-image.component";
 import { LayersComponent } from "../map/layers.component";
 import { RoutesPathComponent } from "../map/routes-path.component";
 import { MissingPartOverlayComponent } from "../overlays/missing-part-overlay.component";
-import { EditTraceDialogComponent } from "../dialogs/edit-trece-dialog.component";
+import { EditTraceDialogComponent } from "../dialogs/edit-trace-dialog.component";
 import { OsmAttributionComponent } from "../osm-attribution.component";
 import { ScrollToDirective } from "../../directives/scroll-to.directive";
 import { AnalyticsDirective } from "../../directives/analytics.directive";
@@ -136,6 +136,8 @@ export class TracesComponent implements OnInit {
             trace.dataContainer.routes[0].description = trace.name;
         }
         this.router.navigate([RouteStrings.MAP]);
+        // This is to let the route change to the map so that the relevant map will be used for fit bounds.
+        await new Promise((resolve) => setTimeout(resolve, 100));
         this.dataContainerService.setData(trace.dataContainer, true);
     }
 

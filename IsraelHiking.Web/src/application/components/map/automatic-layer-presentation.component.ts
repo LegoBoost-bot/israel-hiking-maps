@@ -56,6 +56,9 @@ export class AutomaticLayerPresentationComponent implements OnInit, OnChanges, O
         this.subscriptions.push(this.store.select((state: ApplicationState) => state.configuration.units).subscribe(() => {
             this.addLayerRecreationQuqueItem(this.layerData(), this.layerData());
         }));
+        this.subscriptions.push(this.store.select((state: ApplicationState) => state.configuration.theme).subscribe(() => {
+            this.addLayerRecreationQuqueItem(this.layerData(), this.layerData());
+        }));
     }
 
     public ngOnDestroy() {
@@ -103,7 +106,7 @@ export class AutomaticLayerPresentationComponent implements OnInit, OnChanges, O
     }
 
     private async createLayer(layerData: EditableLayer) {
-        const styleLike = await this.defaultStyleService.getSourcesAndLayers(layerData, this.visible(), this.allowOffline() ? "offline" : "online");
+        const styleLike = await this.defaultStyleService.getSourcesAndLayers(layerData, this.visible(), this.allowOffline() ? "allow-offline" : "online-only");
         this.updateSourcesAndLayers(layerData, styleLike.sources, styleLike.layers);
 
         if (this.isBaselayer()) {

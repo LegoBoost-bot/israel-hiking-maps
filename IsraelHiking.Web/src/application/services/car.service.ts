@@ -1,6 +1,7 @@
 import { inject, Injectable } from "@angular/core";
 import { registerPlugin } from "@capacitor/core";
 import { Store } from "@ngxs/store";
+import { skip } from "rxjs";
 
 import { RunningContextService } from "./running-context.service";
 import { LoggingService } from "./logging.service";
@@ -8,7 +9,7 @@ import { LayersService } from "./layers.service";
 import { DefaultStyleService } from "./default-style.service";
 import type { ApplicationState } from "../models";
 
-type CarStoreKey = "style" | "route" | "config";
+type CarStoreKey = "style" | "route" | "config" | "route_instructions";
 
 type CarStoreMessage = {
     key: CarStoreKey;
@@ -31,40 +32,41 @@ export class CarService {
     private readonly layersService = inject(LayersService);
 
     public async initialize() {
-        if (!this.runningContextService.isCapacitor || this.runningContextService.isIos) {
-            // Only android is supported right now.
+        if (!this.runningContextService.isCapacitor) {
             return;
         }
 
-        this.store.select((state: ApplicationState) => state.layersState.selectedBaseLayerKey).subscribe(() => {
+        this.store.select((state: ApplicationState) => state.layersState.selectedBaseLayerKey).pipe(skip(1)).subscribe(() => {
             this.setStyle();
         });
-        this.store.select((state: ApplicationState) => state.offlineState.downloadedTiles).subscribe(() => {
+        this.store.select((state: ApplicationState) => state.offlineState.downloadedTiles).pipe(skip(1)).subscribe(() => {
             this.setStyle();
         });
-        this.store.select((state: ApplicationState) => state.routes.present).subscribe(() => {
+        this.store.select((state: ApplicationState) => state.routes.present).pipe(skip(1)).subscribe(() => {
             this.setRoutes();
         });
-        this.store.select((state: ApplicationState) => state.configuration.language).subscribe(() => {
-            this.setStyle();
-            this.setConfig();
+        this.store.select((state: ApplicationState) => state.configuration.language).pipe(skip(1)).subscribe(async () => {
+            await this.setConfig();
+            await this.setStyle();
+            await this.setRoutes();
         });
-        this.store.select((state: ApplicationState) => state.configuration.units).subscribe(() => {
-            this.setConfig();
+        this.store.select((state: ApplicationState) => state.configuration.units).pipe(skip(1)).subscribe(async () => {
+            await this.setConfig();
+            await this.setStyle();
         });
-        this.setConfig();
+        await this.setConfig();
         await this.setStyle();
-        this.setRoutes();
+        await this.setRoutes();
     }
 
     private async setStyle() {
         this.loggingService.info("[Car] Setting style");
         const layerData = this.layersService.getSelectedBaseLayer();
         const styleLike = await this.defaultStyleService.getSourcesAndLayers(layerData, true, "car");
-        ReactivePreferences.storeValue({ key: "style", value: styleLike });
+        await ReactivePreferences.storeValue({ key: "style", value: styleLike });
     }
 
-    private setRoutes() {
+    private async setRoutes() {
         this.loggingService.info("[Car] Setting routes");
         const routes = this.store.selectSnapshot((state: ApplicationState) => state.routes.present);
 
@@ -75,15 +77,17 @@ export class CarService {
                 weight: route.weight,
                 color: route.color,
                 opacity: route.opacity,
-                name: route.name
+                name: route.name,
+                markers: (route.markers ?? []).map(m => ({ latlng: [m.latlng.lng, m.latlng.lat], title: m.title ?? "" }))
             }));
 
-        ReactivePreferences.storeValue({ key: "route", value: { routes: routesValue } });
+        await ReactivePreferences.storeValue({ key: "route_instructions", value: {} });
+        await ReactivePreferences.storeValue({ key: "route", value: { routes: routesValue } });
     }
 
-    private setConfig() {
+    private async setConfig() {
         this.loggingService.info("[Car] Setting config");
-        ReactivePreferences.storeValue({
+        await ReactivePreferences.storeValue({
             key: "config",
             value: {
                 language: this.store.selectSnapshot((state: ApplicationState) => state.configuration.language).code,

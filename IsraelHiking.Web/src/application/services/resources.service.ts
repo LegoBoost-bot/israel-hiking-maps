@@ -188,7 +188,10 @@ export class ResourcesService {
     public reportAnIssueInstructions: string;
     public reportAnIssueSiteInstructions: string;
     public addPointToActiveRoute: string;
-    public advancedSettings: string;
+    public settings: string;
+    public theme: string;
+    public themeLight: string;
+    public themeDark: string;
     public batteryOptimization: string;
     public batteryOptimizationHint: string;
     public automaticRecordingUpload: string;
@@ -526,7 +529,7 @@ export class ResourcesService {
     }
 
     private async setLanguageInternal(language: Language): Promise<void> {
-        await this.gettextCatalog.loadRemote(Urls.translations + language.code + ".json?sign=1777838898465");
+        await this.gettextCatalog.loadRemote(Urls.translations + language.code + ".json?sign=1782066177541");
         this.about = this.gettextCatalog.getString("About");
         this.legend = this.gettextCatalog.getString("Legend");
         this.clear = this.gettextCatalog.getString("Clear");
@@ -689,7 +692,10 @@ export class ResourcesService {
         this.reportAnIssueInstructions = this.gettextCatalog.getString("Report an issue instructions");
         this.reportAnIssueSiteInstructions = this.gettextCatalog.getString("Report an issue site instructions");
         this.addPointToActiveRoute = this.gettextCatalog.getString("Add point to active route");
-        this.advancedSettings = this.gettextCatalog.getString("Advanced Settings");
+        this.settings = this.gettextCatalog.getString("Settings");
+        this.theme = this.gettextCatalog.getString("Theme");
+        this.themeLight = this.gettextCatalog.getString("Light");
+        this.themeDark = this.gettextCatalog.getString("Dark");
         this.batteryOptimization = this.gettextCatalog.getString("Battery optimization");
         this.batteryOptimizationHint = this.gettextCatalog.getString("Dims display when there's no user interaction");
         this.automaticRecordingUpload = this.gettextCatalog.getString("Automatic upload of recording");
@@ -887,7 +893,7 @@ export class ResourcesService {
             "Would you like to open the app settings?");
         this.noLocationPermission = this.gettextCatalog.getString("There's no permission to use your location.");
         this.tracesAreOnlySavedLocally = this.gettextCatalog.getString("Traces are only saved locally. " +
-            "You can change that in the configuration settings");
+            "You can change that in the settings");
         this.unexpectedErrorPleaseTryAgainLater = this.gettextCatalog.getString("Oops, something went wrong. Please try again later");
         this.trackingIsDisabledWhileEditing = this.gettextCatalog.getString("GPS tracking is disabled while editing.");
         this.loginTokenExpiredPleaseLoginAgain = this.gettextCatalog.getString("Login token expired, please login again");

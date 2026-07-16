@@ -2,6 +2,8 @@ import { describe, beforeEach, vi, it, expect, Mock } from "vitest";
 import { inject, TestBed } from "@angular/core/testing";
 import { NgxsModule, Store } from "@ngxs/store";
 import type {
+    BackgroundLayerSpecification,
+    FillLayerSpecification,
     RasterDEMSourceSpecification,
     RasterLayerSpecification,
     RasterSourceSpecification,
@@ -92,7 +94,7 @@ describe("DefaultStyleService", () => {
             minZoom: 5,
             maxZoom: 15,
             opacity: 0.5
-        }), true, "online");
+        }), true, "online-only");
 
         const layer = result.layers[0] as RasterLayerSpecification;
         const source = result.sources[layer.source] as RasterSourceSpecification;
@@ -117,7 +119,7 @@ describe("DefaultStyleService", () => {
             address: "https://tiles.example.com/{z}/{x}/{y}.png",
             minZoom: 1,
             maxZoom: 10
-        }), false, "online");
+        }), false, "online-only");
 
         const layer = result.layers[0] as RasterLayerSpecification;
         expect(layer.layout?.visibility).toBe("none");
@@ -129,7 +131,7 @@ describe("DefaultStyleService", () => {
             address: "https://server/arcgis/rest/MapServer",
             minZoom: 1,
             maxZoom: 10
-        }), true, "online");
+        }), true, "online-only");
 
         const layer = result.layers[0] as RasterLayerSpecification;
         const source = result.sources[layer.source] as RasterSourceSpecification;
@@ -144,7 +146,7 @@ describe("DefaultStyleService", () => {
             address: "https://server/arcgis/rest/MapServer/3",
             minZoom: 1,
             maxZoom: 10
-        }), true, "online");
+        }), true, "online-only");
 
         const layer = result.layers[0] as RasterLayerSpecification;
         const source = result.sources[layer.source] as RasterSourceSpecification;
@@ -157,7 +159,7 @@ describe("DefaultStyleService", () => {
             address: "https://tiles.example.com/{z}/{x}/{-y}.png",
             minZoom: 1,
             maxZoom: 10
-        }), true, "online");
+        }), true, "online-only");
 
         const layer = result.layers[0] as RasterLayerSpecification;
         const source = result.sources[layer.source] as RasterSourceSpecification;
@@ -171,13 +173,13 @@ describe("DefaultStyleService", () => {
             address: "https://tiles.example.com/a/{z}/{x}/{y}.png",
             minZoom: 1,
             maxZoom: 10
-        }), true, "online");
+        }), true, "online-only");
         const second = await service.getSourcesAndLayers(createLayer({
             key: "raster-key",
             address: "https://tiles.example.com/b/{z}/{x}/{y}.png",
             minZoom: 1,
             maxZoom: 10
-        }), true, "online");
+        }), true, "online-only");
 
         expect(first.layers[0].id).not.toBe(second.layers[0].id);
         expect(Object.keys(first.sources)[0]).not.toBe(Object.keys(second.sources)[0]);
@@ -204,7 +206,7 @@ describe("DefaultStyleService", () => {
         const result = await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json"
-        }), true, "online");
+        }), true, "online-only");
 
         const asText = JSON.stringify(result);
         expect(asText).toContain("name:en");
@@ -223,7 +225,7 @@ describe("DefaultStyleService", () => {
         await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json"
-        }), true, "online");
+        }), true, "online-only");
 
         expect(fileService.getStyleJsonContent).toHaveBeenCalledWith("https://x/style.json", false);
     }));
@@ -238,7 +240,7 @@ describe("DefaultStyleService", () => {
         await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json"
-        }), true, "offline");
+        }), true, "allow-offline");
 
         expect(fileService.getStyleJsonContent).toHaveBeenCalledWith("https://x/style.json", true);
     }));
@@ -256,7 +258,7 @@ describe("DefaultStyleService", () => {
         const result = await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json"
-        }), true, "offline");
+        }), true, "allow-offline");
 
         const vector = result.sources.test as VectorSourceSpecification;
         const dem = result.sources.dem as RasterDEMSourceSpecification;
@@ -301,7 +303,7 @@ describe("DefaultStyleService", () => {
         const result = await service.getSourcesAndLayers(createLayer({
             key: "not-a-builtin-layer",
             address: "https://x/style.json"
-        }), true, "offline");
+        }), true, "allow-offline");
 
         const source = result.sources.test as VectorSourceSpecification;
         expect(source.url).toBe("https://x/v.json");
@@ -320,7 +322,7 @@ describe("DefaultStyleService", () => {
         const result = await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json"
-        }), true, "offline");
+        }), true, "allow-offline");
 
         const contour = result.sources.Contour as VectorSourceSpecification;
         expect(contour.url).toBeUndefined();
@@ -345,13 +347,13 @@ describe("DefaultStyleService", () => {
         const result = await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json"
-        }), true, "offline");
+        }), true, "allow-offline");
 
         const contour = result.sources.Contour as VectorSourceSpecification;
         expect(contour.tiles?.[0]).toContain("multiplier=3.28084");
     }));
 
-    it("should not manipulate the contour source when not offline", inject([DefaultStyleService, FileService], async (service: DefaultStyleService, fileService: FileService) => {
+    it("should tag the contour source with the slice and units query in car mode", inject([DefaultStyleService, FileService], async (service: DefaultStyleService, fileService: FileService) => {
         (fileService.getStyleJsonContent as Mock).mockResolvedValue(JSON.stringify({
             version: 8,
             sources: {
@@ -366,8 +368,32 @@ describe("DefaultStyleService", () => {
         }), true, "car");
 
         const contour = result.sources.Contour as VectorSourceSpecification;
+        expect(contour.url).toBeUndefined();
         expect(contour.tiles?.[0]).not.toContain("dem-contour://");
-        expect(contour.maxzoom).toBe(14);
+        expect(contour.tiles?.[0]).toBe("https://x/{z}/{x}/{y}.pbf?use=slice&contour=metric");
+        expect(contour.maxzoom).toBe(16);
+    }));
+
+    it("should tag the contour source with imperial units in car mode when configured", inject([DefaultStyleService, Store, FileService], async (service: DefaultStyleService, store: Store, fileService: FileService) => {
+        store.reset({
+            offlineState: { downloadedTiles: null },
+            configuration: { units: "imperial" }
+        });
+        (fileService.getStyleJsonContent as Mock).mockResolvedValue(JSON.stringify({
+            version: 8,
+            sources: {
+                Contour: { type: "vector", url: "https://x/c.json", tiles: ["https://x/{z}/{x}/{y}.pbf"], maxzoom: 14 }
+            },
+            layers: []
+        }));
+
+        const result = await service.getSourcesAndLayers(createLayer({
+            key: builtInLayerKey,
+            address: "https://x/style.json"
+        }), true, "car");
+
+        const contour = result.sources.Contour as VectorSourceSpecification;
+        expect(contour.tiles?.[0]).toBe("https://x/{z}/{x}/{y}.pbf?use=slice&contour=imperial");
     }));
 
     it("should treat a .json address with a query string as a vector style", inject([DefaultStyleService, FileService], async (service: DefaultStyleService, fileService: FileService) => {
@@ -376,8 +402,77 @@ describe("DefaultStyleService", () => {
         await service.getSourcesAndLayers(createLayer({
             key: builtInLayerKey,
             address: "https://x/style.json?cache=123"
-        }), true, "online");
+        }), true, "online-only");
 
         expect(fileService.getStyleJsonContent).toHaveBeenCalled();
+    }));
+
+    it("should recolor the background and palette fills, leaving others untouched, when the theme is dark", inject([DefaultStyleService, Store, FileService], async (service: DefaultStyleService, store: Store, fileService: FileService) => {
+        store.reset({ offlineState: { downloadedTiles: null }, configuration: { units: "metric", theme: "dark" } });
+        (fileService.getStyleJsonContent as Mock).mockResolvedValue(JSON.stringify({
+            version: 8,
+            sources: {},
+            layers: [
+                { id: "bg", type: "background", paint: { "background-color": "#FFFFFF" } },
+                { id: "water-area", type: "fill", paint: { "fill-color": "#AAD3DF" } },
+                { id: "area-residential", type: "fill", paint: { "fill-color": "#E0DFDF" } },
+                { id: "other-fill", type: "fill", paint: { "fill-color": "#123456" } },
+                { id: "area-landcover-low", type: "fill", paint: { "fill-opacity": 0.5 } },
+                { id: "land-residential", type: "fill", paint: { "fill-color": "rgb(224, 224, 224)" } },
+                { id: "land_wood_solid", type: "fill", paint: { "fill-color": "rgb(200, 217, 174)" } },
+                { id: "water", type: "fill", paint: { "fill-color": "rgb(148, 193, 225)" } },
+                { id: "water_riverbed", type: "fill", paint: { "fill-color": "rgb(200, 217, 174)", "fill-pattern": "stones_pattern" } },
+                { id: "land_wood_pattern", type: "symbol", layout: { "icon-image": "forest_pattern" } },
+                { id: "land_orchard", type: "fill", paint: { "fill-pattern": "orchard_pattern" } }
+            ]
+        }));
+
+        const result = await service.getSourcesAndLayers(createLayer({ key: builtInLayerKey, address: "https://x/style.json" }), true, "online-only");
+
+        expect((result.layers[0] as BackgroundLayerSpecification).paint?.["background-color"]).toBe("#1B1B1B");
+        expect((result.layers[1] as FillLayerSpecification).paint?.["fill-color"]).toBe("#14202E");
+        expect((result.layers[2] as FillLayerSpecification).paint?.["fill-color"]).toBe("#2B2B2B");
+        expect((result.layers[3] as FillLayerSpecification).paint?.["fill-color"]).toBe("#123456"); // not in palette
+        expect((result.layers[4] as FillLayerSpecification).paint?.["fill-color"]).toBeUndefined(); // no fill-color to replace
+        expect((result.layers[5] as FillLayerSpecification).paint?.["fill-color"]).toBe("#2B2B2B"); // bike urban
+        expect((result.layers[6] as FillLayerSpecification).paint?.["fill-color"]).toBe("#1D2A1A"); // bike landcover
+        expect((result.layers[7] as FillLayerSpecification).paint?.["fill-color"]).toBe("#14202E"); // bike water
+        expect((result.layers[8] as FillLayerSpecification).paint?.["fill-color"]).toBe("#1D2A1A"); // recolored...
+        expect((result.layers[8] as FillLayerSpecification).paint?.["fill-pattern"]).toBeUndefined(); // ...and pattern stripped
+        expect(result.layers[9].layout?.visibility).toBe("none"); // decorative forest pattern hidden
+        expect(result.layers[10].layout?.visibility).toBe("none"); // decorative orchard pattern hidden
+    }));
+
+    it("should not recolor any layer when the theme is not dark", inject([DefaultStyleService, FileService], async (service: DefaultStyleService, fileService: FileService) => {
+        (fileService.getStyleJsonContent as Mock).mockResolvedValue(JSON.stringify({
+            version: 8,
+            sources: {},
+            layers: [
+                { id: "bg", type: "background", paint: { "background-color": "#FFFFFF" } },
+                { id: "water-area", type: "fill", paint: { "fill-color": "#AAD3DF" } }
+            ]
+        }));
+
+        const result = await service.getSourcesAndLayers(createLayer({ key: builtInLayerKey, address: "https://x/style.json" }), true, "online-only");
+
+        expect((result.layers[0] as BackgroundLayerSpecification).paint?.["background-color"]).toBe("#FFFFFF");
+        expect((result.layers[1] as FillLayerSpecification).paint?.["fill-color"]).toBe("#AAD3DF");
+    }));
+
+    it("should not recolor any layer in car mode even when the theme is dark", inject([DefaultStyleService, Store, FileService], async (service: DefaultStyleService, store: Store, fileService: FileService) => {
+        store.reset({ offlineState: { downloadedTiles: null }, configuration: { units: "metric", theme: "dark" } });
+        (fileService.getStyleJsonContent as Mock).mockResolvedValue(JSON.stringify({
+            version: 8,
+            sources: {},
+            layers: [
+                { id: "bg", type: "background", paint: { "background-color": "#FFFFFF" } },
+                { id: "water-area", type: "fill", paint: { "fill-color": "#AAD3DF" } }
+            ]
+        }));
+
+        const result = await service.getSourcesAndLayers(createLayer({ key: builtInLayerKey, address: "https://x/style.json" }), true, "car");
+
+        expect((result.layers[0] as BackgroundLayerSpecification).paint?.["background-color"]).toBe("#FFFFFF");
+        expect((result.layers[1] as FillLayerSpecification).paint?.["fill-color"]).toBe("#AAD3DF");
     }));
 });
