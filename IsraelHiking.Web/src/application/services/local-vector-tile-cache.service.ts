@@ -2,6 +2,8 @@ import { EventEmitter, inject, Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { featureCollection } from "@turf/helpers";
 import circle from "@turf/circle";
+import booleanIntersects from "@turf/boolean-intersects";
+import bboxPolygon from "@turf/bbox-polygon";
 import { v4 as uuidv4 } from "uuid";
 import type { Immutable } from "immer";
 import Dexie from "dexie";
@@ -61,7 +63,9 @@ type ParsedTileUrl = {
 export class LocalVectorTileCacheService {
 
     /** Buffer around a route when computing the cached map area. */
-    public static readonly ROUTE_BUFFER_METERS = 1000;
+    public static readonly ROUTE_BUFFER_METERS = 500;
+
+
 
     private static readonly DB_NAME = "LocalTileCache";
     private static readonly TABLE_NAME = "tiles";
@@ -107,8 +111,17 @@ export class LocalVectorTileCacheService {
             units: "meters",
             steps: 8
         }));
-        const bounds = SpatialService.getBoundsForFeatureCollection(featureCollection(circles));
-        return SpatialService.getTileKeysInBounds(bounds, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+        const featureCollectionOfCircles = featureCollection(circles);
+        const bounds = SpatialService.getBoundsForFeatureCollection(featureCollectionOfCircles);
+        const candidateTiles = SpatialService.getTileKeysInBounds(bounds, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+
+        return candidateTiles.filter(tileKey => {
+            const { tileX, tileY } = this.parseTileKey(tileKey);
+            const northEast = SpatialService.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+            const southWest = SpatialService.fromTile({ x: tileX + 1, y: tileY + 1 }, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+            const tilePolygon = bboxPolygon([northEast.lng, southWest.lat, southWest.lng, northEast.lat]);
+            return circles.some(circleFeature => booleanIntersects(tilePolygon, circleFeature));
+        });
     }
 
     public createMapTileRegion(tileX: number, tileY: number, label?: string): LocalVectorTileCacheRegion {
