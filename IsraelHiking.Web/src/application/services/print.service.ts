@@ -154,9 +154,12 @@ export class PrintService {
             }
         }
         
+        var firstRouteName: string;
+
         const latlngs: LatLngAltTime[] = [];
         if (mode === "route" && route) {
             latlngs.push(...this.getLatlngs(route));
+            firstRouteName = route.name;
         } else if (mode === "all") {
             const mapBounds = this.mapService.getMapBounds();
             for (const r of allRoutes.filter(r => r.state !== "Hidden" && !excludedRouteIds.includes(r.id))) {
@@ -166,17 +169,21 @@ export class PrintService {
                         pt.lat >= mapBounds.southWest.lat && pt.lat <= mapBounds.northEast.lat;
                 });
                 if (isAnyPointInViewport) {
+                    if (!firstRouteName) {
+                        firstRouteName = r.name;
+                    }
                     latlngs.push(...routeLatlngs);
                 }
             }
         }
 
         const bounds = latlngs.length > 0 ? SpatialService.getBounds(latlngs) : this.mapService.getMapBounds();
+
         
         if (format === "png") {
-            await this.exportPng(bounds);
+            await this.exportPng(bounds, this.getFilename(firstRouteName, "png"));
         } else {
-            await this.exportPdf(bounds, scale, customScale, orientation, splitToPages);
+            await this.exportPdf(bounds, scale, customScale, orientation, splitToPages, this.getFilename(firstRouteName, "pdf"));
         }
 
         if (route || mode === "all") {
@@ -190,7 +197,7 @@ export class PrintService {
         }
     }
 
-    private async exportPng(bounds: { southWest: { lat: number, lng: number }, northEast: { lat: number, lng: number } }) {
+    private async exportPng(bounds: { southWest: { lat: number, lng: number }, northEast: { lat: number, lng: number } }, filename: string) {
         const map = this.mapService.map!;
         
         const container = map.getContainer();
@@ -214,7 +221,6 @@ export class PrintService {
         await this.waitForIdle(map);
         
         const dataUrl = map.getCanvas().toDataURL("image/png");
-        const fileName = `map_${new Date().getTime()}.png`;
 
         container.style.width = originalWidth;
         container.style.height = originalHeight;
@@ -222,7 +228,7 @@ export class PrintService {
 
         if (this.runningContextService.isCapacitor) {
             const savedFile = await Filesystem.writeFile({
-                path: fileName,
+                path: filename,
                 data: dataUrl.split(",")[1],
                 directory: Directory.Cache
             });
@@ -230,9 +236,21 @@ export class PrintService {
         } else {
             const link = document.createElement("a");
             link.href = dataUrl;
-            link.download = fileName;
+            link.download = filename;
             link.click();
         }
+    }
+
+    private getFilename(routeName: string | undefined, format: string): string {
+        const t = new Date();
+
+        const date = `${t.getDate()}-${t.getMonth()}-${t.getFullYear()}-${t.getHours()}-${t.getMinutes()}-${t.getSeconds()}`;
+
+        if (!routeName) {
+            return `map_${date}.${format}`;
+        }
+
+        return `map_${routeName}_${date}.${format}`;
     }
 
     private async exportPdf(
@@ -240,7 +258,8 @@ export class PrintService {
         scale: "fit" | "1:50000" | "1:25000" | "custom",
         customScale: number,
         orientation: "portrait" | "landscape" | "auto",
-        splitToPages: boolean
+        splitToPages: boolean,
+        filename: string,
     ) {
         const map = this.mapService.map!;
         const container = map.getContainer();
@@ -292,16 +311,15 @@ export class PrintService {
         container.style.height = originalHeight;
         map.resize();
 
-        const fileName = `map_${new Date().getTime()}.pdf`;
         if (this.runningContextService.isCapacitor) {
             const savedFile = await Filesystem.writeFile({
-                path: fileName,
+                path: filename,
                 data: pdf.output("datauristring").split(",")[1],
                 directory: Directory.Cache
             });
             await Share.share({ url: savedFile.uri });
         } else {
-            pdf.save(fileName);
+            pdf.save(filename);
         }
     }
 
