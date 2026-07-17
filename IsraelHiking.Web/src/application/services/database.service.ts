@@ -111,6 +111,50 @@ export class DatabaseService {
             const data = await this.pmTilesService.getTileByUrl(params.url);
             return { data };
         });
+        addProtocol("bbox", async (params, _abortController) => {
+            // urls will look something like:
+            // bbox://example.com/multi?LAYER=yap&STYLE=yap/{z}/{x}/{y}
+            const pathMatch = params.url.match(/bbox:\/\/(.+?)\/(\d+)\/(\d+)\/(\d+)/);
+            
+            if (!pathMatch) {
+                throw new Error(`Invalid bbox url: ${params.url}. Expected format with {z}/{x}/{y}`);
+            }
+
+            const baseUrl = pathMatch[1];
+            const z = parseInt(pathMatch[2]);
+            const x = parseInt(pathMatch[3]);
+            const y = parseInt(pathMatch[4]);
+
+            // Calculate BBOX in lon,lat
+            const getBounds = (z: number, x: number, y: number) => {
+                const n = Math.pow(2, z);
+                const lngMin = x / n * 360 - 180;
+                const lngMax = (x + 1) / n * 360 - 180;
+                const latMax = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI;
+                const latMin = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))) * 180 / Math.PI;
+                
+                return `${lngMin},${latMin},${lngMax},${latMax}`;
+            };
+            
+            const bbox = getBounds(z, x, y);
+            let wmsUrl = `https://${baseUrl}`;
+            wmsUrl += "&SERVICE=WMS";
+            wmsUrl += "&VERSION=1.3.0";
+            wmsUrl += "&REQUEST=GetMap"
+            wmsUrl += "&FORMAT=image/png"
+            wmsUrl += "&TRANSPARENT=TRUE"
+            wmsUrl += "&WIDTH=512"
+            wmsUrl += "&HEIGHT=512"
+            wmsUrl += `&BBOX=${bbox}`
+
+            const response = await firstValueFrom(this.httpClient.get(wmsUrl, { observe: "response", responseType: "arraybuffer" })
+                .pipe(timeout(60000))) as any as HttpResponse<any>;
+            
+            if (!response.ok) {
+                throw new Error(`Failed to get ${wmsUrl}: ${response.status}`);
+            }
+            return { data: response.body };
+        });
         addProtocol("slice", async (params, _abortController) => {
             if (params.url.endsWith(".json")) {
                 const url = params.url.replace("slice://", "https://");
