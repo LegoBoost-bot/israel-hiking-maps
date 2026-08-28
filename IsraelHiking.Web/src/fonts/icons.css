@@ -286,6 +286,10 @@
   content: "\e940";
 }
 
+.icon-hdd-o:before {
+  content: "\e98c";
+}
+
 .icon-hike:before {
   content: "\e941";
 }
@@ -436,6 +440,10 @@
 
 .icon-plus:before {
   content: "\e966";
+}
+
+.icon-print:before {
+  content: "\e98d";
 }
 
 .icon-quarry:before {
