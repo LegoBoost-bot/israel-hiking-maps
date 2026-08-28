@@ -2,7 +2,7 @@ import { DecimalPipe } from "@angular/common";
 import { Component, computed, inject, signal } from "@angular/core";
 import { Store } from "@ngxs/store";
 import { GeoJSONSourceComponent, LayerComponent, MapComponent } from "@maplibre/ngx-maplibre-gl";
-import { type Map, type MapMouseEvent, LngLatBounds, type StyleSpecification } from "maplibre-gl";
+import { type Map, type MapMouseEvent, type MapTouchEvent, LngLatBounds, type StyleSpecification } from "maplibre-gl";
 import { MatButton } from "@angular/material/button";
 import { MatProgressSpinner } from "@angular/material/progress-spinner";
 
@@ -44,7 +44,7 @@ export class LocalTileCacheManagementComponent {
     private isDrawing = false;
     private startPoint: { lng: number; lat: number } = null;
     private longPressTimer: ReturnType<typeof setTimeout> | null = null;
-    private readonly LONG_PRESS_DURATION = 1000;
+    private readonly LONG_PRESS_DURATION = 500;
 
     public readonly regions = signal<LocalVectorTileCacheRegion[]>([]);
     public readonly progressByRegionId = signal<Record<string, LocalVectorTileCacheDownloadProgress>>({});
@@ -92,7 +92,9 @@ export class LocalTileCacheManagementComponent {
         });
     }
 
-    public onMapMouseDown(event: MapMouseEvent) {
+    public onMapMouseDown(event: MapMouseEvent | MapTouchEvent) {
+        this.cancelDrawing();
+        this.drawingRectangleGeoJson = { features: [], type: "FeatureCollection" };
         this.startPoint = event.lngLat;
         this.longPressTimer = setTimeout(() => {
             this.isDrawing = true;
@@ -101,7 +103,7 @@ export class LocalTileCacheManagementComponent {
         }, this.LONG_PRESS_DURATION);
     }
 
-    public onMapMouseMove(event: MapMouseEvent) {
+    public onMapMouseMove(event: MapMouseEvent | MapTouchEvent) {
         if (this.isDrawing) {
             this.updateDrawingRectangle(event.lngLat);
         } else if (this.startPoint && this.longPressTimer) {
@@ -114,7 +116,7 @@ export class LocalTileCacheManagementComponent {
         }
     }
 
-    public onMapMouseUp(event: MapMouseEvent) {
+    public onMapMouseUp(event: MapMouseEvent | MapTouchEvent) {
         if (this.longPressTimer) {
             clearTimeout(this.longPressTimer);
             this.longPressTimer = null;
@@ -125,6 +127,18 @@ export class LocalTileCacheManagementComponent {
             this.updateDrawingRectangle(event.lngLat);
             this.startPoint = null;
         }
+    }
+
+    public onMapTouchStart(event: MapTouchEvent) {
+        this.onMapMouseDown(event);
+    }
+
+    public onMapTouchMove(event: MapTouchEvent) {
+        this.onMapMouseMove(event);
+    }
+
+    public onMapTouchEnd(event: MapTouchEvent) {
+        this.onMapMouseUp(event);
     }
 
     private updateDrawingRectangle(endPoint: { lng: number; lat: number }) {
