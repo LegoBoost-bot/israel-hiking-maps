@@ -1,0 +1,89 @@
+<div class="fixed top-0 bottom-0 left-0 right-0 overflow-hidden flex flex-col items-center">
+    <mgl-map [mapStyle]="mapStyle" (mapLoad)="onMapLoad($event)"
+        (mapMouseDown)="onMapMouseDown($event)" (mapMouseMove)="onMapMouseMove($event)" (mapMouseUp)="onMapMouseUp($event)"
+        class="h-full w-full">
+        <auto-layer [layerData]="baseLayerData" [visible]="true" [isBaselayer]="true" [allowOffline]="false"
+            [before]="resources.endOfBaseLayer">
+        </auto-layer>
+        <mgl-geojson-source id="saved-tiles" [data]="savedTilesGeoJson"></mgl-geojson-source>
+        <mgl-layer id="saved-tiles-layer" type="fill" source="saved-tiles" [paint]="{
+            'fill-color': ['get', 'color'],
+            'fill-opacity': 0.25
+        }"></mgl-layer>
+        <mgl-layer id="saved-tiles-outline" type="line" source="saved-tiles" [paint]="{
+            'line-color': ['get', 'color'],
+            'line-width': 2
+        }"></mgl-layer>
+        <routes-path [routesGeoJson]="cachedRoutesGeoJson()"></routes-path>
+        <mgl-geojson-source id="drawing-rectangle" [data]="drawingRectangleGeoJson"></mgl-geojson-source>
+        <mgl-layer id="drawing-rectangle-layer" type="fill" source="drawing-rectangle" [paint]="{
+            'fill-color': 'orange',
+            'fill-opacity': 0.35
+        }"></mgl-layer>
+        <mgl-layer id="drawing-rectangle-outline" type="line" source="drawing-rectangle" [paint]="{
+            'line-color': 'orange',
+            'line-width': 2,
+            'line-dasharray': [2, 2]
+        }"></mgl-layer>
+    </mgl-map>
+    <div class="fixed top-4 flex flex-col items-center gap-2 max-w-[92vw]">
+        @if (drawingRectangleGeoJson.features.length > 0) {
+        <button mat-flat-button color="primary" (click)="addSelectedRectangleArea()" analyticsOn="click"
+            analyticsCategory="Local Tile Cache" analyticsLabel="Save Selected Area">
+            <i class="fa fa-plus-circle me-1"></i>
+            {{resources.localVectorTileCacheAddMapArea}}
+        </button>
+        } @else {
+        <div class="bg-white/90 backdrop-blur rounded-lg shadow px-4 py-2 text-sm text-gray-700 text-center">
+            {{resources.localVectorTileCacheManageHint}}
+        </div>
+        }
+    </div>
+    <div class="fixed bottom-4 left-4 right-4 max-w-xl mx-auto bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 max-h-[40vh] flex flex-col">
+        <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-base text-gray-800">{{resources.localVectorTileCacheManage}}</span>
+            <span class="text-xs text-gray-500">{{regions().length}} {{resources.localVectorTileCacheRegionsSummary.replace("{count}", "")}}</span>
+        </div>
+        <div class="overflow-y-auto flex-1 flex flex-col gap-2">
+            @if (regions().length === 0) {
+            <div class="text-xs text-gray-500 text-center py-4">
+                {{resources.localVectorTileCacheNoRegions}}
+            </div>
+            }
+            @for (region of regions(); track region.id) {
+            <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2 text-sm border border-gray-100">
+                <div class="flex flex-col flex-1 min-w-0 me-2">
+                    <span class="font-medium text-gray-800 truncate">
+                        <i class="fa fa-sm me-1" [class.icon-map-o]="region.source === 'mapTile'" [class.icon-compass]="region.source === 'route'"></i>
+                        {{getRouteLabel(region)}}
+                    </span>
+                    <span class="text-xs text-gray-500">
+                        {{region.tileKeys.length}} {{resources.localVectorTileCacheTiles}}
+                        @if (getProgress(region.id); as progress) {
+                        @if (progress.status === 'downloading') {
+                        • {{progress.percent | number:'1.0-0'}}%
+                        } @else if (progress.status === 'error') {
+                        • <span class="text-red-500">Error</span>
+                        }
+                        }
+                    </span>
+                </div>
+                <div class="flex items-center gap-1">
+                    @if (isDownloading(region.id)) {
+                    <mat-spinner [diameter]="20"></mat-spinner>
+                    } @else if (getProgress(region.id)?.status === 'error') {
+                    <button mat-button class="p-0! min-w-8!" (click)="retryDownload(region)" analyticsOn="click"
+                        analyticsCategory="Local Tile Cache" analyticsLabel="Retry Download">
+                        <i class="fa fa-refresh text-orange-500"></i>
+                    </button>
+                    }
+                    <button mat-button class="p-0! min-w-8!" (click)="removeRegion(region.id)" analyticsOn="click"
+                        analyticsCategory="Local Tile Cache" analyticsLabel="Remove Region">
+                        <i class="fa fa-trash text-red-500"></i>
+                    </button>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+</div>

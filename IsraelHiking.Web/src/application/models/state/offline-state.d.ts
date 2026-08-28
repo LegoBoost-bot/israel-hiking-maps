@@ -4,6 +4,19 @@
     version?: string;
 }
 
+export type LocalVectorTileCacheRegionSource = "mapTile" | "route";
+
+export type LocalVectorTileCacheRegion = {
+    id: string;
+    source: LocalVectorTileCacheRegionSource;
+    label: string;
+    /** Local cache region tiles, keys formatted as "tileX-tileY". */
+    tileKeys: string[];
+    routeId?: string;
+    addedAt: string;
+    bufferMeters?: number;
+};
+
 export type OfflineState = {
     /**
      * `true` after a user made a purchase of the subscription 
@@ -17,4 +30,12 @@ export type OfflineState = {
      * The last time the app detected that the user is offline
      */
     lastOfflineDetectedDate: Date | null;
+    /**
+     * When true, map vector tiles for selected regions are kept in local storage for later use.
+     */
+    isLocalVectorTileCacheEnabled: boolean;
+    /**
+     * User-selected geographic areas whose map tiles should be cached on the device.
+     */
+    localVectorTileCacheRegions: LocalVectorTileCacheRegion[];
 };

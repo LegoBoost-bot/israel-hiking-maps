@@ -15,6 +15,7 @@ import { SpatialService } from "./spatial.service";
 import { LoggingService } from "./logging.service";
 import { GpxDataContainerConverterService } from "./gpx-data-container-converter.service";
 import { ElevationProvider } from "./elevation.provider";
+import { LocalVectorTileCacheService } from "./local-vector-tile-cache.service";
 import { Urls } from "../urls";
 import type { DataContainer } from "../models";
 
@@ -107,6 +108,7 @@ export class FileService {
     private readonly gpxDataContainerConverterService = inject(GpxDataContainerConverterService);
     private readonly loggingService = inject(LoggingService);
     private readonly elevationProvider = inject(ElevationProvider);
+    private readonly localVectorTileCacheService = inject(LocalVectorTileCacheService);
 
     public readonly formats: FormatViewModel[] = [
         {
@@ -172,6 +174,11 @@ export class FileService {
             }
             if (tryLocalStyle) {
                 return await this.getLocalStyleJson(url);
+            }
+            const cachedStyle = await this.localVectorTileCacheService.getStyle(url);
+            if (cachedStyle != null) {
+                this.loggingService.info(`[Files] Served style from local vector tile cache: ${url}`);
+                return cachedStyle;
             }
             return await firstValueFrom(this.httpClient.get(url, { responseType: "text" }).pipe(timeout(5000)));
         } catch (ex) {

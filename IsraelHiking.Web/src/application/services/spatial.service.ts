@@ -329,6 +329,22 @@ export class SpatialService {
         return (bearingRadians * 180 / Math.PI + 360) % 360; // in degrees
     }
 
+    public static getTileKeysInBounds(bounds: Bounds, zoom: number): string[] {
+        const southWestTile = SpatialService.toTile(bounds.southWest, zoom);
+        const northEastTile = SpatialService.toTile(bounds.northEast, zoom);
+        const minTileX = Math.floor(Math.min(southWestTile.x, northEastTile.x));
+        const maxTileX = Math.floor(Math.max(southWestTile.x, northEastTile.x));
+        const minTileY = Math.floor(Math.min(southWestTile.y, northEastTile.y));
+        const maxTileY = Math.floor(Math.max(southWestTile.y, northEastTile.y));
+        const tileKeys: string[] = [];
+        for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+            for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
+                tileKeys.push(`${tileX}-${tileY}`);
+            }
+        }
+        return tileKeys;
+    }
+
     public static toTile(latlng: LatLngAltTime, zoom: number) {
         return {
             x: (latlng.lng + 180) / 360 * Math.pow(2, zoom),

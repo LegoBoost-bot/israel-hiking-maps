@@ -20,6 +20,10 @@ export class MapService {
     private readonly missingImagesArray: string[] = [];
     private currentMap: Map;
 
+    public get map(): Map {
+        return this.currentMap;
+    }
+
     private readonly cancelableTimeoutService = inject(CancelableTimeoutService);
     private readonly loggingService = inject(LoggingService);
     private readonly resourcesService = inject(ResourcesService)
@@ -53,6 +57,7 @@ export class MapService {
         maplibregl.setRTLTextPlugin("./mapbox-gl-rtl-text.js", false);
         maplibregl.addProtocol("custom", (params) => this.databaseService.getCustomTile(params.url));
         maplibregl.addProtocol("slice", (params) => this.databaseService.getSliceTile(params.url));
+        maplibregl.addProtocol("bbox", (params) => this.databaseService.getBboxTile(params.url));
         maplibregl.addProtocol("overpass", (params) => this.overpassTurboService.getOverpassResults(params.url));
         this.store.select((state: ApplicationState) => state.inMemoryState.pannedTimestamp).subscribe(pannedTimestamp => {
             this.cancelableTimeoutService.clearTimeoutByName("panned");

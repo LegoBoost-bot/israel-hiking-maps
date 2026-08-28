@@ -246,7 +246,9 @@ export const initialState =
         offlineState: {
             isSubscribed: false,
             uploadPoiQueue: [],
-            lastOfflineDetectedDate: null
+            lastOfflineDetectedDate: null,
+            isLocalVectorTileCacheEnabled: false,
+            localVectorTileCacheRegions: []
         },
         paywallState: {
             lastPaywallShownDate: null,

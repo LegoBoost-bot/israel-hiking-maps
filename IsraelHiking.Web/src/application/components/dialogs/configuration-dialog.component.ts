@@ -1,5 +1,6 @@
-import { Component, inject } from "@angular/core";
+import { Component, computed, inject } from "@angular/core";
 import { Dir } from "@angular/cdk/bidi";
+import { RouterLink } from "@angular/router";
 import { MatButton, MatAnchor, MatIconButton } from "@angular/material/button";
 import { CdkScrollable } from "@angular/cdk/scrolling";
 import { MatFormField, MatLabel } from "@angular/material/input";
@@ -25,12 +26,13 @@ import {
     ToggleAutomaticRecordingUploadAction,
     ToggleGotLostWarningsAction
 } from "../../reducers/configuration.reducer";
+import { SetLocalVectorTileCacheEnabledAction } from "../../reducers/offline.reducer";
 import type { ApplicationState, BatteryOptimizationType, ThemeSetting } from "../../models";
 
 @Component({
     selector: "configuration-dialog",
     templateUrl: "./configuration-dialog.component.html",
-    imports: [MatIconButton, Dir, MatDialogTitle, MatButton, MatDialogClose, CdkScrollable, MatDialogContent, MatRadioGroup, MatRadioButton, AnalyticsDirective, MatCheckbox, MatDialogActions, MatAnchor, FormsModule, MatFormField, MatSelect, MatOption, MatLabel]
+    imports: [MatIconButton, Dir, MatDialogTitle, MatButton, MatDialogClose, CdkScrollable, MatDialogContent, MatRadioGroup, MatRadioButton, AnalyticsDirective, MatCheckbox, MatDialogActions, MatAnchor, FormsModule, MatFormField, MatSelect, MatOption, MatLabel, RouterLink]
 })
 export class ConfigurationDialogComponent {
 
@@ -54,6 +56,9 @@ export class ConfigurationDialogComponent {
     public isGotLostWarnings = this.store.selectSignal((state: ApplicationState) => state.configuration.isGotLostWarnings);
     public batteryOptimizationType = this.store.selectSignal((state: ApplicationState) => state.configuration.batteryOptimizationType);
     public isSubscribed = this.store.selectSignal((state: ApplicationState) => state.offlineState.isSubscribed);
+    public isLocalVectorTileCacheEnabled = this.store.selectSignal((state: ApplicationState) => state.offlineState.isLocalVectorTileCacheEnabled);
+    public localVectorTileCacheRegions = this.store.selectSignal((state: ApplicationState) => state.offlineState.localVectorTileCacheRegions);
+    public readonly localVectorTileCacheRegionsSummary = computed(() => this.resources.localVectorTileCacheRegionsSummary.replace("{count}", `${this.localVectorTileCacheRegions().length}`));
 
     constructor() {
         this.manageSubscriptions = this.runningContextService.isIos
@@ -84,6 +89,10 @@ export class ConfigurationDialogComponent {
 
     public toggleGotLostWarnings() {
         this.store.dispatch(new ToggleGotLostWarningsAction());
+    }
+
+    public setLocalVectorTileCacheEnabled(enabled: boolean) {
+        this.store.dispatch(new SetLocalVectorTileCacheEnabledAction(enabled));
     }
 
     public clearData() {

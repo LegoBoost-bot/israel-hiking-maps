@@ -35,6 +35,12 @@ export const routes: Route[] = [
         resolve: { map: initializeMapResolver }
     },
     {
+        path: "local-tile-cache",
+        loadComponent: () => import("./components/screens/local-tile-cache-management.component").then(m => m.LocalTileCacheManagementComponent),
+        title: "Mapeak - Saved Map Areas",
+        resolve: { map: initializeMapResolver }
+    },
+    {
         path: "public-routes",
         loadComponent: () => import("./components/screens/public-routes.component").then(m => m.PublicRoutesComponent),
         title: "Mapeak - Public Routes",

@@ -9,7 +9,7 @@ android {
         exclude 'build-data.properties'
     }
     defaultConfig {
-        applicationId "com.mapeak"
+        applicationId 'com.schreiber.mapeak'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 921000
@@ -28,11 +28,13 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
             ndk {
                 debugSymbolLevel = "SYMBOL_TABLE"
             }
         }
         debug {
+            applicationIdSuffix 'debug'
             ndk { abiFilters "x86_64" }
         }
     }

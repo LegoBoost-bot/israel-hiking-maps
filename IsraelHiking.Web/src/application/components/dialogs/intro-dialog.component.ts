@@ -65,7 +65,7 @@ export class IntroDialogComponent {
     public close() {
         if (this.languageCode() == "en-US") {
             this.store.dispatch(new SetDateFormatAction("MM/dd/yyyy"));
-            this.store.dispatch(new SetUnitsAction("imperial"));
+            this.store.dispatch(new SetUnitsAction("metric"));
         } else {
             this.store.dispatch(new SetDateFormatAction("dd/MM/yyyy"));
             this.store.dispatch(new SetUnitsAction("metric"));

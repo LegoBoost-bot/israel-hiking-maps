@@ -88,6 +88,16 @@
                                         <i class="fa fa-lg icon-external-link-square"></i>
                                         <span class="ms-2">{{resources.exportRoute}}</span>
                                     </button>
+                                    <button mat-menu-item (click)="shareRoute(route)" analyticsOn="click"
+                                        analyticsCategory="Route" analyticsLabel="Share route">
+                                        <i class="fa fa-lg icon-share-alt"></i>
+                                        <span class="ms-2">{{resources.share}}</span>
+                                    </button>
+                                    <button mat-menu-item (click)="exportForPrint(route)" analyticsOn="click"
+                                        analyticsCategory="Route" analyticsLabel="Export for print">
+                                        <i class="fa fa-lg icon-print"></i>
+                                        <span class="ms-2">Print</span>
+                                    </button>
                                     <button mat-menu-item (click)="moveToRoute(route)" analyticsOn="click"
                                         analyticsCategory="Route" analyticsLabel="Move to route">
                                         <i class="fa fa-lg icon-crosshairs"></i>
@@ -97,6 +107,11 @@
                                         analyticsCategory="Route" analyticsLabel="Reverse route">
                                         <i class="fa fa-lg icon-arrows-h"></i>
                                         <span class="ms-2">{{resources.reverseRoute}}</span>
+                                    </button>
+                                    <button mat-menu-item (click)="saveMapAroundRoute(route)" analyticsOn="click"
+                                        analyticsCategory="Route" analyticsLabel="Save map around route">
+                                        <i class="fa fa-lg icon-hdd-o"></i>
+                                        <span class="ms-2">{{resources.localVectorTileCacheSaveAroundRoute}}</span>
                                     </button>
                                 </mat-menu>
                                 <button mat-button class="flex-1" (click)="deleteRoute($event, route)"

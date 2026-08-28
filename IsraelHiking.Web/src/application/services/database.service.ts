@@ -10,6 +10,7 @@ import type { GetResourceResponse } from "maplibre-gl";
 import { LoggingService } from "./logging.service";
 import { RunningContextService } from "./running-context.service";
 import { PmTilesService } from "./pmtiles.service";
+import { LocalVectorTileCacheService } from "./local-vector-tile-cache.service";
 import { initialState } from "../reducers/initial-state";
 import { ClearHistoryAction } from "../reducers/routes.reducer";
 import { SetSelectedPoiAction } from "../reducers/poi.reducer";
@@ -60,6 +61,7 @@ export class DatabaseService {
     private readonly loggingService = inject(LoggingService);
     private readonly runningContextService = inject(RunningContextService);
     private readonly pmTilesService = inject(PmTilesService);
+    private readonly localVectorTileCacheService = inject(LocalVectorTileCacheService);
     private readonly httpClient = inject(HttpClient);
     private readonly store = inject(Store);
     private readonly ngZone = inject(NgZone);
@@ -126,10 +128,69 @@ export class DatabaseService {
     }
 
     /**
+     * Handles the "bbox" protocol, registered by the map service.
+     */
+    public async getBboxTile(url: string): Promise<GetResourceResponse<ArrayBuffer>> {
+        const pathMatch = url.match(/bbox:\/\/(.+?)\/(\d+)\/(\d+)\/(\d+)/);
+        if (!pathMatch) {
+            throw new Error(`Invalid bbox url: ${url}. Expected format with {z}/{x}/{y}`);
+        }
+
+        const baseUrl = pathMatch[1];
+        const z = parseInt(pathMatch[2], 10);
+        const x = parseInt(pathMatch[3], 10);
+        const y = parseInt(pathMatch[4], 10);
+
+        const getBounds = (zoom: number, tileX: number, tileY: number) => {
+            const n = Math.pow(2, zoom);
+            const lngMin = tileX / n * 360 - 180;
+            const lngMax = (tileX + 1) / n * 360 - 180;
+            const latMax = Math.atan(Math.sinh(Math.PI * (1 - 2 * tileY / n))) * 180 / Math.PI;
+            const latMin = Math.atan(Math.sinh(Math.PI * (1 - 2 * (tileY + 1) / n))) * 180 / Math.PI;
+            return `${lngMin},${latMin},${lngMax},${latMax}`;
+        };
+
+        const bbox = getBounds(z, x, y);
+        let wmsUrl = `https://${baseUrl}`;
+        wmsUrl += "&SERVICE=WMS";
+        wmsUrl += "&VERSION=1.3.0";
+        wmsUrl += "&REQUEST=GetMap";
+        wmsUrl += "&FORMAT=image/png";
+        wmsUrl += "&TRANSPARENT=TRUE";
+        wmsUrl += "&WIDTH=512";
+        wmsUrl += "&HEIGHT=512";
+        wmsUrl += `&BBOX=${bbox}`;
+
+        const response = await firstValueFrom(this.httpClient.get(wmsUrl, { observe: "response", responseType: "arraybuffer" })
+            .pipe(timeout(60000)));
+
+        if (!response.ok) {
+            throw new Error(`Failed to get ${wmsUrl}: ${response.status}`);
+        }
+        return { data: response.body ?? new ArrayBuffer(0) };
+    }
+
+    /**
      * Handles the "slice" protocol, registered by the map service.
      * Falls back to the offline files when the server can not be reached.
      */
     public async getSliceTile(url: string): Promise<GetResourceResponse<ArrayBuffer>> {
+        if (url.endsWith(".json")) {
+            const fetchUrl = url.replace("slice://", "https://");
+            const cachedStyle = await this.localVectorTileCacheService.getStyle(fetchUrl);
+            if (cachedStyle != null) {
+                const encoder = new TextEncoder();
+                return { data: encoder.encode(cachedStyle).buffer };
+            }
+            const response = await firstValueFrom(this.httpClient.get(fetchUrl, { observe: "response", responseType: "text" }).pipe(timeout(10000)));
+            if (!response.ok) {
+                throw new Error(`Failed to get style ${url}: ${response.status}`);
+            }
+            const styleText = response.body ?? "";
+            await this.localVectorTileCacheService.storeStyle(fetchUrl, styleText);
+            const encoder = new TextEncoder();
+            return { data: encoder.encode(styleText).buffer };
+        }
         // slice://mapeak.com/vector/data/mapeak-schema/{z}/{x}/{y}.mvt
         const splitUrl = url.split("/");
         const type = splitUrl[splitUrl.length - 4];
@@ -137,7 +198,7 @@ export class DatabaseService {
         const x = +splitUrl[splitUrl.length - 2];
         const y = +(splitUrl[splitUrl.length - 1].split(".")[0]);
         const offlineAvailable = await this.pmTilesService.isOfflineFileAvailable(z, x, y, type);
-        try {
+        const downloadTile = async () => {
             const response = await firstValueFrom(this.httpClient.get(url.replace("slice://", "https://"), { observe: "response", responseType: "arraybuffer" })
                 .pipe(offlineAvailable ? timeout(2000) : timeout(60000)));
             if (!response.ok) {
@@ -145,6 +206,13 @@ export class DatabaseService {
             }
             const data = response.body ?? new ArrayBuffer(0);
             return { data, cacheControl: response.headers.get("Cache-Control"), expires: response.headers.get("Expires") };
+        };
+        try {
+            const localCacheResponse = await this.localVectorTileCacheService.getOrDownloadTileBySliceUrl(url, downloadTile);
+            if (localCacheResponse != null) {
+                return localCacheResponse;
+            }
+            return await downloadTile();
         } catch (ex) {
             // Timeout or other error
             if (offlineAvailable === false) {

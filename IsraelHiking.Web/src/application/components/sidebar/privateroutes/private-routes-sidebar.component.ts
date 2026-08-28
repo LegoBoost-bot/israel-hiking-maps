@@ -16,6 +16,7 @@ import { Store } from "@ngxs/store";
 import { Immutable } from "immer";
 
 import { ShareEditDialogComponent, ShareEditDialogComponentData } from "../../dialogs/share-edit-dialog.component";
+import { ExportForPrintDialogComponent, ExportForPrintDialogData } from "../../dialogs/export-for-print-dialog.component";
 import { FileSaveDialogComponent } from "../../../components/dialogs/file-save-dialog.component";
 import { DistancePipe } from "../../../pipes/distance.pipe";
 import { AnalyticsDirective } from "../../../directives/analytics.directive";
@@ -32,7 +33,9 @@ import { LogReaderService } from "../../../services/log-reader.service";
 import { ShareUrlsService } from "../../../services/share-urls.service";
 import { DataContainerService } from "../../../services/data-container.service";
 import { RoutesFactory } from "../../../services/routes.factory";
+import { LocalVectorTileCacheService } from "../../../services/local-vector-tile-cache.service";
 import { ChangeRouteStateAction, ToggleAllRoutesAction, DeleteAllRoutesAction, AddRouteAction, ChangeRoutePropertiesAction, DeleteRouteAction, BulkReplaceRoutesAction } from "../../../reducers/routes.reducer";
+import { AddLocalVectorTileCacheRegionAction } from "../../../reducers/offline.reducer";
 import { SetOpacityAction, SetSelectedRouteAction, SetWeightAction } from "../../../reducers/route-editing.reducer";
 import type { ApplicationState, LatLngAltTime, RouteData, ShareUrl } from "../../../models";
 
@@ -57,6 +60,7 @@ export class PrivateRoutesSidebarComponent {
     private readonly logReaderService = inject(LogReaderService);
     private readonly shareUrlsService = inject(ShareUrlsService);
     private readonly dataContainerService = inject(DataContainerService);
+    private readonly localVectorTileCacheService = inject(LocalVectorTileCacheService);
 
     public routes = this.store.selectSignal((state: ApplicationState) => state.routes.present);
     public readonly colors = this.routesFactory.colors;
@@ -108,6 +112,8 @@ export class PrivateRoutesSidebarComponent {
         const newRouteState = selectedRoute != null && selectedRoute.state !== "Hidden" ? selectedRoute.state : "ReadOnly";
         this.store.dispatch(new ChangeRouteStateAction(routeData.id, newRouteState));
         this.selectedRouteService.setSelectedRoute(routeData.id);
+        this.close();
+        this.moveToRoute(routeData);
     }
 
     public toggleAllRoutes(event: Event) {
@@ -188,6 +194,53 @@ export class PrivateRoutesSidebarComponent {
         this.dialog.open<FileSaveDialogComponent, RouteData>(FileSaveDialogComponent, {
             data: structuredClone(routeData) as RouteData
         });
+    }
+
+    public exportForPrint(routeData: Immutable<RouteData>) {
+        this.dialog.open<ExportForPrintDialogComponent, ExportForPrintDialogData>(ExportForPrintDialogComponent, {
+            width: "480px",
+            data: {
+                route: structuredClone(routeData) as RouteData
+            }
+        });
+    }
+
+    public shareRoute(routeData: Immutable<RouteData>) {
+        if (this.store.selectSnapshot((s: ApplicationState) => s.userState).userInfo == null) {
+            this.toastService.warning(this.resources.loginRequired);
+            return;
+        }
+        const dataContainer = this.dataContainerService.getContainerForRoutes([routeData]);
+        if (this.dataContainerService.isContainerEmpty(dataContainer)) {
+            this.toastService.warning(this.resources.unableToSaveAnEmptyRoute);
+            return;
+        }
+        this.dialog.open<ShareEditDialogComponent, ShareEditDialogComponentData>(ShareEditDialogComponent, {
+            width: "480px",
+            data: {
+                fullShareUrl: structuredClone(this.shareUrlsService.getSelectedShareUrl()) as ShareUrl,
+                dataContainer,
+                hasHiddenRoutes: this.routes().some(r => r.state === "Hidden")
+            }
+        });
+    }
+
+    public async saveMapAroundRoute(routeData: Immutable<RouteData>) {
+        const region = this.localVectorTileCacheService.createRouteRegion(routeData);
+        if (region == null) {
+            this.toastService.warning(this.resources.localVectorTileCacheRouteEmpty);
+            return;
+        }
+        this.store.dispatch(new AddLocalVectorTileCacheRegionAction(region));
+        const message = this.resources.localVectorTileCacheRouteSaved
+            .replace("{name}", routeData.name)
+            .replace("{count}", `${region.tileKeys.length}`);
+        this.toastService.success(message);
+
+        const status = await this.localVectorTileCacheService.downloadRegion(region);
+        if (status === "error") {
+            this.toastService.warning(this.resources.unexpectedErrorPleaseTryAgainLater);
+        }
     }
 
     public moveToRoute(routeData: Immutable<RouteData>) {
