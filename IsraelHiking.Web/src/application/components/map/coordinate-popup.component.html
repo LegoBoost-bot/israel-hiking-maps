@@ -1,0 +1,40 @@
+<div style="padding: 10px; font-family: sans-serif;">
+  <div style="margin-bottom: 5px;">Lat/Lon: {{getLatLonString()}}</div>
+  <div style="margin-bottom: 5px;">ITM: {{getItmString()}}</div>
+  @if (elevation() !== null) {
+    <div style="margin-bottom: 5px;">Elevation: {{elevation()}}m</div>
+  }
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <button mat-button [matMenuTriggerFor]="copyMenu" class="p-0 min-w-0" title="Copy">
+      <i class="icon-copy mat-icon"></i>
+    </button>
+    <mat-menu #copyMenu="matMenu">
+      <button mat-menu-item [cdkCopyToClipboard]="getLatLonString()" (click)="toastService.info('Lat/Lon copied')">Copy Lat/Lon</button>
+      <button mat-menu-item [cdkCopyToClipboard]="getItmString(true)" (click)="toastService.info('ITM copied')">Copy ITM</button>
+    </mat-menu>
+
+    <button mat-button [matMenuTriggerFor]="shareMenu" class="p-0 min-w-0" title="Share">
+      <i class="icon-share-alt mat-icon"></i>
+    </button>
+    <mat-menu #shareMenu="matMenu">
+      <div mat-menu-item disableRipple="true">
+        <div class="flex flex-row">
+          <div class="flex-1"><a mat-button class="w-full" [href]="getWazeUrl()" [target]="'_blank'"
+          matTooltip="{{resources.navigateWithWaze}}" matTooltipPosition="below"><i class="fa icon-waze"></i></a>
+          </div>
+          <div class="flex-1"><a mat-button class="w-full" [href]="getGoogleMapsUrl()" [target]="'_blank'"
+          matTooltip="{{resources.navigateWithGoogleMaps}}" matTooltipPosition="below"><i class="fa icon-map-marker"></i></a>
+          </div>
+          <div class="flex-1"><button mat-button class="w-full" (click)=share() matTooltip="{{resources.share}}"
+          matTooltipPosition="below"><i class="fa icon-ellipsis-v"></i></button>
+          </div>
+        </div>
+      </div>
+    </mat-menu>
+
+    <button mat-button (click)="navigateHere()" class="p-0 min-w-0" title="Navigate">
+      <i class="icon-recordings mat-icon"></i>
+    </button>
+    
+  </div>
+</div>

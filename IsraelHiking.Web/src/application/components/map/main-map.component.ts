@@ -1,8 +1,9 @@
-import { Component, ViewEncapsulation, ElementRef, inject, viewChildren, DestroyRef, signal } from "@angular/core";
+import { Component, ViewEncapsulation, ElementRef, inject, viewChildren, DestroyRef, signal, ViewContainerRef } from "@angular/core";
+import { CoordinatePopupComponent } from "./coordinate-popup.component";
 import { NgStyle } from "@angular/common";
 import { MatSidenavContainer, MatSidenav } from "@angular/material/sidenav";
 import { MapComponent, CustomControl } from "@maplibre/ngx-maplibre-gl";
-import { type StyleSpecification, type Map, ScaleControl, IControl, ControlPosition, type RasterDEMSourceSpecification } from "maplibre-gl";
+import { type StyleSpecification, type Map, ScaleControl, IControl, ControlPosition, type RasterDEMSourceSpecification, Popup, MapTouchEvent, MapMouseEvent } from "maplibre-gl";
 import { NgProgressbar } from "ngx-progressbar";
 import { NgProgressHttp } from "ngx-progressbar/http";
 import { Store } from "@ngxs/store";
@@ -30,7 +31,9 @@ import { MapService } from "../../services/map.service";
 import { RunningContextService } from "../../services/running-context.service";
 import { DefaultStyleService } from "../../services/default-style.service";
 import { SidebarService } from "../../services/sidebar.service";
-import type { ApplicationState, LocationState } from "../../models";
+import type { ApplicationState, LocationState, LatLngAltTime } from "../../models";
+import { CoordinatesService } from "../../services/coordinates.service";
+import { ElevationProvider } from "../../services/elevation.provider";
 
 @Component({
     selector: "main-map",
@@ -55,15 +58,23 @@ export class MainMapComponent {
 
     private readonly titleService = inject(MapeakTitleService);
     private readonly mapService = inject(MapService);
+    private readonly viewContainerRef = inject(ViewContainerRef);
     private readonly runningContextService = inject(RunningContextService);
     private readonly defaultStyleService = inject(DefaultStyleService);
     private readonly sidebarService = inject(SidebarService);
+    private readonly coordinatesService = inject(CoordinatesService);
+    private readonly elevationProvider = inject(ElevationProvider);
     private readonly store = inject(Store);
     private readonly destroyRef = inject(DestroyRef);
 
     private addedControls: IControl[] = [];
     private map: Map;
     private isTerrainOn = false;
+
+    private longPressTimer: ReturnType<typeof setTimeout> = null;
+    private readonly LONG_PRESS_DURATION = 500;
+
+    private coordinateInfoPopup = new Popup();
 
     constructor() {
         this.location = this.store.selectSnapshot((s: ApplicationState) => s.locationState);
@@ -93,6 +104,60 @@ export class MainMapComponent {
         this.store.select((state: ApplicationState) => state.configuration.units).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
             this.initControls();
         });
+
+        this.map.on("mousedown", this.onMapMouseDown.bind(this));
+        this.map.on("touchstart", this.onMapMouseDown.bind(this));
+
+        this.map.on("mousemove", (_) => this.cancelLongPress());
+        this.map.on("touchmove", (_) => this.cancelLongPress());
+
+        this.map.on("mouseup", (_) => this.cancelLongPress());
+        this.map.on("touchend", (_) => this.cancelLongPress());
+        this.map.on("touchcancel", (_) => this.cancelLongPress());
+
+        this.map.on("zoomstart", (_) => this.cancelLongPress());
+        this.map.on("zoom", (_) => this.cancelLongPress());
+
+        this.map.on("contextmenu", (e) => this.showCoordinatePopup(e));
+    }
+
+    private cancelLongPress() {
+        if (this.longPressTimer) {
+            clearTimeout(this.longPressTimer);
+            this.longPressTimer = null;
+        }
+    }
+
+    private async showCoordinatePopup(e: MapMouseEvent | MapTouchEvent) {
+        const pos = e.lngLat;
+        const itm = await this.coordinatesService.toItm({ lat: pos.lat, lng: pos.lng });
+        const latlng: LatLngAltTime = { lat: pos.lat, lng: pos.lng };
+        await this.elevationProvider.updateHeights([latlng]);
+        const elevation = latlng.alt;
+
+        const componentRef = this.viewContainerRef.createComponent(CoordinatePopupComponent);
+        componentRef.setInput("lat", pos.lat);
+        componentRef.setInput("lng", pos.lng);
+        componentRef.setInput("itm", itm);
+        componentRef.setInput("elevation", elevation !== undefined && elevation !== null ? Math.round(elevation) : null);
+        componentRef.changeDetectorRef.detectChanges();
+
+        this.coordinateInfoPopup
+            .setLngLat(pos)
+            .setDOMContent(componentRef.location.nativeElement)
+            .addTo(this.map);
+
+        this.coordinateInfoPopup.on("close", () => {
+            componentRef.destroy();
+        });
+    }
+
+
+    private onMapMouseDown(event: MapMouseEvent | MapTouchEvent) {
+        if (this.longPressTimer) return;
+        this.longPressTimer = setTimeout(() => {
+            this.showCoordinatePopup(event);
+        }, this.LONG_PRESS_DURATION);
     }
 
     private initControls() {

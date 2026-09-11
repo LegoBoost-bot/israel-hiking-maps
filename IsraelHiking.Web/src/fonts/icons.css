@@ -190,6 +190,10 @@
   content: "\e928";
 }
 
+.icon-copy:before {
+  content: "\e98e";
+}
+
 .icon-crosshairs:before {
   content: "\e929";
 }
