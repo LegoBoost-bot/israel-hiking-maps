@@ -1,4 +1,4 @@
-import { inject, Service } from "@angular/core";
+import { inject, Service, signal } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { cloneDeep } from "lodash-es";
 import { firstValueFrom } from "rxjs";
@@ -21,6 +21,7 @@ import { INatureService } from "./inature.service";
 import { WikidataService } from "./wikidata.service";
 import { ImageAttributionService } from "./image-attribution.service";
 import { OsmTagsService, PoiProperties } from "./osm-tags.service";
+import { HttpPoiService } from "./http-poi.service";
 import { ShareUrlsService } from "./share-urls.service";
 import { NakebService } from "./nakeb.service";
 import { AddToPoiQueueAction, RemoveFromPoiQueueAction } from "../reducers/offline.reducer";
@@ -71,6 +72,7 @@ export class PoiService {
     private readonly overpassTurboService = inject(OverpassTurboService);
     private readonly imageAttributinoService = inject(ImageAttributionService);
     private readonly shareUrlsService = inject(ShareUrlsService);
+    private readonly httpPoiService = inject(HttpPoiService);
     private readonly store = inject(Store);
 
     public initialize() {
@@ -257,8 +259,20 @@ export class PoiService {
         return visibleFeatures;
     }
 
+    public readonly httpPois = signal<GeoJSON.Feature<GeoJSON.Point, PoiProperties>[]>([]);
+
+    public async updateHttpPois(z: number, x: number, y: number) {
+        this.loggingService.info(`[POIs] Updating HttpPois for z=${z}, x=${x}, y=${y}`);
+        try {
+            const pois = await this.httpPoiService.getPois(z, x, y);
+            this.httpPois.set(pois.features as GeoJSON.Feature<GeoJSON.Point, PoiProperties>[]);
+        } catch (e) {
+            this.loggingService.error(`[POIs] Failed to load http pois: ${(e as Error).message}`);
+        }
+    }
+
     public getPoisGeoJson(): GeoJSON.FeatureCollection<GeoJSON.Point, PoiProperties> {
-        const categoires = this.store.selectSnapshot((s: ApplicationState) => s.layersState.visiblePoisCategories)
+        const categoires = this.store.selectSnapshot((s: ApplicationState) => s.layersState.visiblePoisCategories);
         if (categoires.length === 0) {
             return {
                 type: "FeatureCollection",
@@ -266,9 +280,10 @@ export class PoiService {
             };
         }
         const tileFeautes = this.getPoisFromTiles();
+        const allPois = [...tileFeautes, ...this.httpPois()];
         return {
             type: "FeatureCollection",
-            features: this.filterFeatures(tileFeautes, categoires)
+            features: this.filterFeatures(allPois, categoires)
         };
     }
 
@@ -360,6 +375,9 @@ export class PoiService {
                     const poi = await this.nakebService.getRoute(id);
                     this.poisCache.splice(0, 0, poi);
                     return poi;
+                }
+                case "HttpPoi": {
+                    return null;
                 }
                 default: {
                     throw new Error(`Unsupported POI source: ${source}`);

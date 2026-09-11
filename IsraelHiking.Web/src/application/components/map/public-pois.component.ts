@@ -77,11 +77,28 @@ export class PublicPoisComponent implements OnInit {
                 this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
             }
         });
-        this.mapComponent.moveEnd.subscribe(() => {
+        this.store.select((state: ApplicationState) => state.locationState).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (location) => {
+            const z = Math.floor(location.zoom);
+            const x = Math.floor((location.longitude + 180) / 360 * Math.pow(2, z));
+            const y = Math.floor((1 - Math.log(Math.tan(location.latitude * Math.PI / 180) + 1 / Math.cos(location.latitude * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+            await this.poiService.updateHttpPois(z, x, y);
             this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
         });
 
         this.store.select((state: ApplicationState) => state.poiState.selectedPointOfInterest).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(poi => this.onSelectedPoiChanged(poi));
+    }
+
+    private async updateHttpPois() {
+        const center = this.mapComponent.center();
+        const zoom = this.mapComponent.zoom();
+        const z = Math.floor(zoom);
+        const lng = Array.isArray(center) ? center[0] : (center as any).lng;
+        const lat = Array.isArray(center) ? center[1] : (center as any).lat;
+        
+        const x = Math.floor((lng + 180) / 360 * Math.pow(2, z));
+        const y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+        await this.poiService.updateHttpPois(z, x, y);
+        this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
     }
 
     private onSelectedPoiChanged(poi: Immutable<GeoJSON.Feature>) {
