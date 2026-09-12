@@ -70,6 +70,11 @@ export class ToggleCategoryVisibilityAction {
     constructor(public readonly name: string) { }
 }
 
+export class ToggleHttpPoisVisibilityAction {
+    public static readonly type = "[Layers] ToggleHttpPoisVisibilityAction";
+    constructor() { }
+}
+
 @State({
     name: "layersState",
     defaults: initialState.layersState
@@ -217,6 +222,14 @@ export class LayersReducer {
                 return lastState;
             }
             lastState.visiblePoisCategories.push(...POINTS_OF_INTEREST_CATEGORIES.map(c => c.name));
+            return lastState;
+        }));
+    }
+
+    @Action(ToggleHttpPoisVisibilityAction)
+    public toggleHttpPoisVisibility(ctx: StateContext<LayersState>, _action: ToggleHttpPoisVisibilityAction) {
+        ctx.setState(produce(ctx.getState(), lastState => {
+            lastState.visibleHttpPois = !lastState.visibleHttpPois;
             return lastState;
         }));
     }

@@ -10,7 +10,8 @@ import {
     CollapseGroupAction,
     ExpandGroupAction,
     TogglePoisCategoriesVisibilityAction,
-    ToggleCategoryVisibilityAction
+    ToggleCategoryVisibilityAction,
+    ToggleHttpPoisVisibilityAction
 } from "../../../reducers/layers.reducer";
 import { POINTS_OF_INTEREST, POINTS_OF_INTEREST_CATEGORIES } from "../../../reducers/initial-state";
 import type { ApplicationState, Category } from "../../../models";
@@ -34,6 +35,8 @@ export class PointsOfInterestCategoriesComponent {
 
     public readonly isCategoryGroupVisible = computed(() => this.layersState().visiblePoisCategories.length > 0);
 
+    public readonly isHttpPoisVisible = computed(() => this.layersState().visibleHttpPois);
+
     public expand() {
         this.store.dispatch(new ExpandGroupAction(POINTS_OF_INTEREST));
     }
@@ -49,6 +52,10 @@ export class PointsOfInterestCategoriesComponent {
     public toggleVisibility(event: Event) {
         event.stopPropagation();
         this.store.dispatch(new TogglePoisCategoriesVisibilityAction());
+    }
+
+    public toggleHttpPoisVisibility() {
+        this.store.dispatch(new ToggleHttpPoisVisibilityAction());
     }
 
     public isCategoryVisible(category: Category): boolean {

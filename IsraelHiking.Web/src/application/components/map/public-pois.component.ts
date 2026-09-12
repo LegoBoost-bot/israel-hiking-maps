@@ -24,9 +24,10 @@ import { NavigateHereService } from "../../services/navigate-here.service";
 import { SetSelectedPoiAction } from "../../reducers/poi.reducer";
 import { AddPrivatePoiAction } from "../../reducers/routes.reducer";
 import { GeoJSONUtils } from "../../services/geojson-utils";
+import { MapService } from "../../services/map.service";
 import { Urls } from "../../urls";
-import type { ApplicationState, LinkData, MarkerData } from "../../models";
 import { skip } from "rxjs";
+import type { ApplicationState, LinkData, MarkerData, Bounds } from "../../models";
 
 @Component({
     selector: "public-pois",
@@ -61,6 +62,7 @@ export class PublicPoisComponent implements OnInit {
     private readonly store = inject(Store);
     private readonly destroyRef = inject(DestroyRef);
     private readonly mapComponent = inject(MapComponent);
+    private readonly mapService = inject(MapService);
 
     public readonly getSelectedFeatureLatlng = computed(() => SpatialService.toLatLng(this.selectedPoiFeature().geometry.coordinates as [number, number]));
 
@@ -72,6 +74,9 @@ export class PublicPoisComponent implements OnInit {
         this.store.select((state: ApplicationState) => state.layersState.visiblePoisCategories).pipe(takeUntilDestroyed(this.destroyRef), skip(1)).subscribe(() => {
             this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
         });
+        this.store.select((state: ApplicationState) => state.layersState.visibleHttpPois).pipe(takeUntilDestroyed(this.destroyRef), skip(1)).subscribe(() => {
+            this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
+        });
         this.mapComponent.sourceData.subscribe((sourceData) => {
             if (sourceData.sourceId === this.poisSrouceId) {
                 this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
@@ -79,26 +84,27 @@ export class PublicPoisComponent implements OnInit {
         });
         this.store.select((state: ApplicationState) => state.locationState).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (location) => {
             const z = Math.floor(location.zoom);
-            const x = Math.floor((location.longitude + 180) / 360 * Math.pow(2, z));
-            const y = Math.floor((1 - Math.log(Math.tan(location.latitude * Math.PI / 180) + 1 / Math.cos(location.latitude * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
-            await this.poiService.updateHttpPois(z, x, y);
+            const bounds: Bounds = this.mapService.getMapBounds();
+            const sw = SpatialService.toTile(bounds.southWest, z);
+            const ne = SpatialService.toTile(bounds.northEast, z);
+            const minX = Math.floor(Math.min(sw.x, ne.x));
+            const maxX = Math.floor(Math.max(sw.x, ne.x));
+            const minY = Math.floor(Math.min(sw.y, ne.y));
+            const maxY = Math.floor(Math.max(sw.y, ne.y));
+            
+            const tiles: { z: number, x: number, y: number }[] = [];
+            for (let x = minX; x <= maxX; x++) {
+                for (let y = minY; y <= maxY; y++) {
+                    tiles.push({ z, x, y });
+                }
+            }
+            if (this.store.selectSnapshot((s: ApplicationState) => s.layersState.visibleHttpPois)) {
+                await this.poiService.updateHttpPois(tiles);
+            }
             this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
         });
 
         this.store.select((state: ApplicationState) => state.poiState.selectedPointOfInterest).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(poi => this.onSelectedPoiChanged(poi));
-    }
-
-    private async updateHttpPois() {
-        const center = this.mapComponent.center();
-        const zoom = this.mapComponent.zoom();
-        const z = Math.floor(zoom);
-        const lng = Array.isArray(center) ? center[0] : (center as any).lng;
-        const lat = Array.isArray(center) ? center[1] : (center as any).lat;
-        
-        const x = Math.floor((lng + 180) / 360 * Math.pow(2, z));
-        const y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
-        await this.poiService.updateHttpPois(z, x, y);
-        this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
     }
 
     private onSelectedPoiChanged(poi: Immutable<GeoJSON.Feature>) {

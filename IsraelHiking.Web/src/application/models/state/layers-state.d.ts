@@ -6,5 +6,6 @@ export type LayersState = {
     selectedBaseLayerKey: string;
     expanded: string[];
     visiblePoisCategories: string[];
+    visibleHttpPois: boolean;
     visibleOverlays: string[];
 };

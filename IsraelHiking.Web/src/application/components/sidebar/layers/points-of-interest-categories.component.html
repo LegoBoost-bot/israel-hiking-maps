@@ -24,4 +24,12 @@
     </button>
   </div>
   }
+  <hr />
+  <div class="flex flex-row">
+    <button mat-button class="row-button w-full justify-start!" (click)="toggleHttpPoisVisibility()" analyticsOn="click"
+      analyticsCategory="Layers" analyticsLabel="Toggle http pois visibility">
+      <i class="fa" [ngClass]="{'icon-eye': isHttpPoisVisible(), 'icon-eye-slash': !isHttpPoisVisible()}"></i>
+      <span>{{resources.httpPois}}</span>
+    </button>
+  </div>
 </mat-expansion-panel>

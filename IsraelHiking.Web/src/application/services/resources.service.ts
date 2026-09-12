@@ -398,6 +398,7 @@ export class ResourcesService {
     public legendRunwayTaxiway: string;
     public legendAerialway: string;
     public legendPoi: string;
+    public httpPois: string;
     public legendPicnicArea: string;
     public legendCampsite: string;
     public legendDrinkingWater: string;
@@ -868,6 +869,7 @@ export class ResourcesService {
         this.legendRunwayTaxiway = this.gettextCatalog.getString("Airfield with Runway and Taxiway");
         this.legendAerialway = this.gettextCatalog.getString("Aerialway");
         this.legendPoi = this.gettextCatalog.getString("Points of Interest");
+        this.httpPois = this.gettextCatalog.getString("HTTP POIs");
         this.legendPicnicArea = this.gettextCatalog.getString("Picnic Area");
         this.legendCampsite = this.gettextCatalog.getString("Campsite");
         this.legendDrinkingWater = this.gettextCatalog.getString("Drinking Water");

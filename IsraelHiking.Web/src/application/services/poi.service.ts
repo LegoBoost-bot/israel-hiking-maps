@@ -261,28 +261,42 @@ export class PoiService {
 
     public readonly httpPois = signal<GeoJSON.Feature<GeoJSON.Point, PoiProperties>[]>([]);
 
-    public async updateHttpPois(z: number, x: number, y: number) {
-        this.loggingService.info(`[POIs] Updating HttpPois for z=${z}, x=${x}, y=${y}`);
+    public async updateHttpPois(tiles: { z: number, x: number, y: number }[]) {
+        this.loggingService.info(`[POIs] Updating HttpPois for ${tiles.length} tiles`);
         try {
-            const pois = await this.httpPoiService.getPois(z, x, y);
-            this.httpPois.set(pois.features as GeoJSON.Feature<GeoJSON.Point, PoiProperties>[]);
+            const poisResults = await Promise.all(tiles.map(tile => this.httpPoiService.getPois(tile.z, tile.x, tile.y)));
+            const allPois: GeoJSON.Feature<GeoJSON.Point, PoiProperties>[] = [];
+            const seen = new Set<string>();
+            for (const pois of poisResults) {
+                for (const feature of pois.features as GeoJSON.Feature<GeoJSON.Point, PoiProperties>[]) {
+                    if (seen.has(feature.properties.poiId)) {
+                        continue;
+                    }
+                    seen.add(feature.properties.poiId);
+                    allPois.push(feature);
+                }
+            }
+            this.httpPois.set(allPois);
         } catch (e) {
             this.loggingService.error(`[POIs] Failed to load http pois: ${(e as Error).message}`);
         }
     }
 
     public getPoisGeoJson(): GeoJSON.FeatureCollection<GeoJSON.Point, PoiProperties> {
-        const categoires = this.store.selectSnapshot((s: ApplicationState) => s.layersState.visiblePoisCategories);
+        const state = this.store.selectSnapshot((s: ApplicationState) => s.layersState);
+        const categoires = state.visiblePoisCategories;
         if (categoires.length === 0) {
             return {
                 type: "FeatureCollection",
                 features: []
             };
         }
-        const tileFeautes = this.getPoisFromTiles();
+        const tilePois = this.getPoisFromTiles();
+        const httpPois = state.visibleHttpPois ? this.httpPois() : [];
+        const allFeatures = [...tilePois, ...httpPois];
         return {
             type: "FeatureCollection",
-            features: [...this.filterFeatures(tileFeautes, categoires), ...this.httpPois()],
+            features: this.filterFeatures(allFeatures, categoires),
         };
     }
 

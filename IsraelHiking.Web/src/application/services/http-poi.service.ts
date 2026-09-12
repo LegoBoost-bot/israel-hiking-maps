@@ -1,7 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { inject, Service } from "@angular/core";
 import { firstValueFrom, timeout } from "rxjs";
-import { PoiProperties } from "./osm-tags.service";
 import { GeoJSONUtils } from "./geojson-utils";
 import { SpatialService } from "./spatial.service";
 
@@ -65,14 +64,14 @@ export class HttpPoiService {
                 type: "Feature",
                 geometry: {
                     type: "Point",
-                    coordinates: [poi.lon, poi.lat],
+                    coordinates: [poi.lon, poi.lat]
                 },
                 properties: {
                     name: poi.title,
                     description: poi.description,
                     poiSource: "AmudAnan",
                     poiId: `AmudAnan_${poi.id}`,
-                    identifier: poi.id,
+                    identifier: poi.id
                 }
             };
 
@@ -94,7 +93,7 @@ export class HttpPoiService {
         
         return {
             type: "FeatureCollection",
-            features: dedupedPois,
+            features: dedupedPois
         };
     }
 
@@ -176,15 +175,20 @@ export class HttpPoiService {
                 feature.properties.poiCategory = "Historic";
                 break;
             default:
+                if (feature.properties.image0) {
+                    feature.properties.poiIcon = "icon-camera";
+                } else {
+                    feature.properties.poiIcon = "icon-globe";
+                }
                 feature.properties.poiIconColor = "black";
-                feature.properties.poiIcon = "icon-globe";
                 feature.properties.poiCategory = "Other";
         }
     }
 
     private addImages(feature: GeoJSON.Feature<GeoJSON.Point>, images: string) {
-        images.split(',').forEach((image: string, index: number) => {
-            var correctedImage = image.replace(' ', '_');
+        images.split(",").forEach((image: string, index: number) => {
+            const correctedImage = image.trim().replaceAll(" ", "_");
+            if (correctedImage.length == 0) return;
             const url = `https://amudanan.co.il/w/images/${correctedImage}`;
             feature.properties[`image${index}`] = url;
         });
