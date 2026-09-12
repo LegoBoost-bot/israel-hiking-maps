@@ -113,6 +113,9 @@ export class GeoJSONUtils {
         if (url.includes("mapeak.com")) {
             return true;
         }
+        if (url.includes("amudanan.co.il")) {
+            return true;
+        }
         return false;
     }
 

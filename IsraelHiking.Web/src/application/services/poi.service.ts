@@ -280,10 +280,9 @@ export class PoiService {
             };
         }
         const tileFeautes = this.getPoisFromTiles();
-        const allPois = [...tileFeautes, ...this.httpPois()];
         return {
             type: "FeatureCollection",
-            features: this.filterFeatures(allPois, categoires)
+            features: [...this.filterFeatures(tileFeautes, categoires), ...this.httpPois()],
         };
     }
 
@@ -376,8 +375,13 @@ export class PoiService {
                     this.poisCache.splice(0, 0, poi);
                     return poi;
                 }
-                case "HttpPoi": {
-                    return null;
+                case "AmudAnan": {
+                    const poi = this.httpPoiService.getFeatureById(id);
+                    if (poi) {
+                        this.poisCache.splice(0, 0, poi);
+                        return poi;
+                    }
+                    throw new Error(`AmudAnan POI ${id} not found in cache`);
                 }
                 default: {
                     throw new Error(`Unsupported POI source: ${source}`);
