@@ -52,9 +52,14 @@ export const routes: Route[] = [
         title: "Mapeak - Privacy Policy"
     },
     {
+        path: "settings",
+        loadComponent: () => import("./components/screens/settings.component").then(m => m.SettingsComponent),
+        title: "Mapeak - Settings"
+    },
+    {
         path: "shares",
         loadComponent: () => import("./components/screens/shares.component").then(m => m.SharesComponent),
-        title: "Mapeak - Cloud Saves",
+        title: "Mapeak - Saved Routes",
         resolve: { map: initializeMapResolver }
     },
     {

@@ -9,12 +9,14 @@ import type { Immutable } from "immer";
 
 import { RouteStrings } from "./hash.service";
 import { WhatsAppService } from "./whatsapp.service";
+import { OsmUserService } from "./osm-user.service";
 import { LoggingService } from "./logging.service";
 import { DatabaseService } from "./database.service";
 import { SetShareUrlAction } from "../reducers/in-memory.reducer";
 import { UpdateShareUrlAction, RemoveShareUrlAction, AddShareUrlAction, SetShareUrlsLastModifiedDateAction } from "../reducers/share-urls.reducer";
-import { SpatialService } from "./spatial.service";
+import { SpatialHelper } from "./spatial.helper";
 import { Urls } from "../urls";
+import type { ImageAttribution, ImageAttributionProvider } from "./image-attribution.service";
 import type { ShareUrl, ApplicationState, UserPermissions, ActivityType } from "../models";
 
 interface IShareUrlSocialLinks {
@@ -24,7 +26,7 @@ interface IShareUrlSocialLinks {
 }
 
 @Service()
-export class ShareUrlsService {
+export class ShareUrlsService implements ImageAttributionProvider {
     private syncing = false;
 
     private readonly httpClient = inject(HttpClient);
@@ -33,6 +35,7 @@ export class ShareUrlsService {
     private readonly loggingService = inject(LoggingService);
     private readonly databaseService = inject(DatabaseService);
     private readonly store = inject(Store);
+    private readonly osmUserService = inject(OsmUserService);
 
     public async initialize() {
         if (this.store.selectSnapshot((s: ApplicationState) => s.userState).userInfo == null) {
@@ -66,7 +69,7 @@ export class ShareUrlsService {
         this.loggingService.info(`[Shares] Getting share by id ${shareUrlId}`);
         const shareUrl = await firstValueFrom(this.httpClient.get<ShareUrl>(Urls.urls + shareUrlId).pipe(timeout(timeToWait)));
         shareUrl.start = shareUrl.start ?? shareUrl.dataContainer.routes?.[0]?.segments?.[0]?.latlngs?.[0];
-        shareUrl.start = shareUrl.start ?? SpatialService.getLatlngInterpolatedValue(shareUrl.dataContainer.northEast, shareUrl.dataContainer.southWest, 0.5);
+        shareUrl.start = shareUrl.start ?? SpatialHelper.getLatlngInterpolatedValue(shareUrl.dataContainer.northEast, shareUrl.dataContainer.southWest, 0.5);
         this.databaseService.storeShareUrl(shareUrl);
         return shareUrl;
     }
@@ -161,7 +164,7 @@ export class ShareUrlsService {
                 if (fullShareUrl != null) {
                     const shareToUpdate = structuredClone(shareUrl) as ShareUrl;
                     shareToUpdate.start = fullShareUrl.dataContainer.routes?.[0]?.segments?.[0]?.latlngs?.[0];
-                    shareToUpdate.start = shareToUpdate.start ?? SpatialService.getLatlngInterpolatedValue(fullShareUrl.dataContainer.northEast, fullShareUrl.dataContainer.southWest, 0.5);
+                    shareToUpdate.start = shareToUpdate.start ?? SpatialHelper.getLatlngInterpolatedValue(fullShareUrl.dataContainer.northEast, fullShareUrl.dataContainer.southWest, 0.5);
                     this.store.dispatch(new UpdateShareUrlAction(shareToUpdate));
                 }
             } catch (ex) {
@@ -234,5 +237,25 @@ export class ShareUrlsService {
             default:
                 return "icon-question";
         }
+    }
+
+    public isImageUrl(imageUrl: string): boolean {
+        return imageUrl != null && imageUrl.includes("mapeak.com") && !imageUrl.startsWith(Urls.userImages);
+    }
+
+    /**
+     * Gets the attribution of a share url thumbnail, the image is credited to the OSM user that created the share
+     * @param imageUrl a url created by {@link getImageUrlFromShareId}
+     */
+    public async getAttributionForImage(imageUrl: string): Promise<ImageAttribution> {
+        if (!this.isImageUrl(imageUrl)) {
+            return null;
+        }
+        const shareUrl = await firstValueFrom(this.httpClient.get<ShareUrl>(imageUrl.replace("/thumbnail", "")));
+        return {
+            author: await this.osmUserService.getUserName(shareUrl.osmUserId),
+            url: shareUrl.website,
+            userId: shareUrl.osmUserId
+        };
     }
 }

@@ -26,8 +26,8 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.debug
             ndk {
                 debugSymbolLevel = "SYMBOL_TABLE"
@@ -48,6 +48,7 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+    implementation "androidx.activity:activity:$androidxActivityVersion"
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
@@ -61,9 +62,9 @@ dependencies {
     implementation "com.github.mapeak-com:maplibre-contour-rs:v$maplibreContourVersion"
     implementation "androidx.core:core-ktx:$androidxCoreKtxVersion"
     implementation "com.google.android.gms:play-services-location:$playServicesLocationVersion"
-    implementation "io.github.rallista:valhalla-mobile:0.6.0"
-    implementation "io.github.rallista:valhalla-models:0.4.0"
-    implementation "io.github.rallista:valhalla-models-config:0.4.0"
+    implementation "io.github.rallista:valhalla-mobile:0.6.4"
+    implementation "io.github.rallista:valhalla-models:0.6.0"
+    implementation "io.github.rallista:valhalla-models-config:0.6.0"
     implementation "com.squareup.moshi:moshi-kotlin:1.15.1"
     implementation "org.apache.commons:commons-compress:1.27.1"
 }

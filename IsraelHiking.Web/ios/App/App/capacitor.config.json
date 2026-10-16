@@ -24,12 +24,13 @@
 		"SharePlugin",
 		"TextZoomPlugin",
 		"AppUpdatePlugin",
+		"MailComposerPlugin",
 		"BackgroundGeolocation",
 		"CapgoCompassPlugin",
 		"CapgoInAppBrowserPlugin",
 		"CapacitorShareTargetPlugin",
+		"SpeechSynthesisPlugin",
 		"PurchasesPlugin",
-		"RevenueCatUIPlugin",
-		"EmailComposerPlugin"
+		"RevenueCatUIPlugin"
 	]
 }

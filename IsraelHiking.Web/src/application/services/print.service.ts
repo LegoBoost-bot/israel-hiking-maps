@@ -6,7 +6,7 @@ import { Share } from "@capacitor/share";
 import { Store } from "@ngxs/store";
 import { MapService } from "./map.service";
 import { RunningContextService } from "./running-context.service";
-import { SpatialService } from "./spatial.service";
+import { SpatialHelper } from "./spatial.helper";
 import { RouteData, LatLngAltTime, ApplicationState, RouteEditStateType } from "../models";
 import { ChangeRouteStateAction } from "../reducers/routes.reducer";
 
@@ -35,8 +35,8 @@ export class PrintService {
     ) {
         const scaleValue = scale === "fit" ? 25000 : (scale === "custom" ? customScale : (scale === "1:50000" ? 50000 : 25000));
 
-        const totalWidthMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
-        const totalHeightMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
+        const totalWidthMeters = SpatialHelper.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
+        const totalHeightMeters = SpatialHelper.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
 
         let isLandscape: boolean;
         if (orientation === "auto") {
@@ -176,7 +176,7 @@ export class PrintService {
             }
         }
 
-        const bounds = latlngs.length > 0 ? SpatialService.getBounds(latlngs) : this.mapService.getMapBounds();
+        const bounds = latlngs.length > 0 ? SpatialHelper.getBounds(latlngs) : this.mapService.getMapBounds();
 
         if (format === "png") {
             await this.exportPng(bounds, this.getFilename(firstRouteName, "png"));
@@ -202,8 +202,8 @@ export class PrintService {
         const originalWidth = container.style.width;
         const originalHeight = container.style.height;
 
-        const widthMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
-        const heightMeters = SpatialService.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
+        const widthMeters = SpatialHelper.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.southWest.lat, lng: bounds.northEast.lng, alt: 0 });
+        const heightMeters = SpatialHelper.getDistanceInMeters({ lat: bounds.southWest.lat, lng: bounds.southWest.lng, alt: 0 }, { lat: bounds.northEast.lat, lng: bounds.southWest.lng, alt: 0 });
 
         const aspectRatio = widthMeters / heightMeters;
         const baseSize = 1024;
@@ -282,7 +282,7 @@ export class PrintService {
             if (scale === "fit") {
                 await this.mapService.fitBounds(bounds, 100);
             } else {
-                map.setCenter([SpatialService.getCenter([bounds.southWest, bounds.northEast]).lng, SpatialService.getCenter([bounds.southWest, bounds.northEast]).lat]);
+                map.setCenter([SpatialHelper.getCenter([bounds.southWest, bounds.northEast]).lng, SpatialHelper.getCenter([bounds.southWest, bounds.northEast]).lat]);
                 map.setZoom(zoom);
             }
             await this.waitForIdle(map);

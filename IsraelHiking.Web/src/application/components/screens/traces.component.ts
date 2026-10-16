@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, ViewEncapsulation, inject, signal } from "@angular/core";
+import { Component, HostListener, DestroyRef, OnInit, ViewEncapsulation, inject, signal } from "@angular/core";
 import { Router } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { Dir } from "@angular/cdk/bidi";
@@ -22,6 +22,7 @@ import { RoutesPathComponent } from "../map/routes-path.component";
 import { MissingPartOverlayComponent } from "../overlays/missing-part-overlay.component";
 import { EditTraceDialogComponent } from "../dialogs/edit-trace-dialog.component";
 import { OsmAttributionComponent } from "../osm-attribution.component";
+import { HighlightedTextComponent } from "../highlighted-text.component";
 import { ScrollToDirective } from "../../directives/scroll-to.directive";
 import { AnalyticsDirective } from "../../directives/analytics.directive";
 import { ResourcesService } from "../../services/resources.service";
@@ -31,11 +32,13 @@ import { MapService } from "../../services/map.service";
 import { ToastService } from "../../services/toast.service";
 import { TracesService } from "../../services/traces.service";
 import { RunningContextService } from "../../services/running-context.service";
-import { SpatialService } from "../../services/spatial.service";
+import { SpatialHelper } from "../../services/spatial.helper";
 import { DataContainerService } from "../../services/data-container.service";
 import { RouteStrings } from "../../services/hash.service";
 import { DefaultStyleService } from "../../services/default-style.service";
 import { SelectedRouteService } from "../../services/selected-route.service";
+import { isDeleteKey, isTypingInTextField, SHORTCUT_ANALYTICS_CATEGORY } from "../../services/keyboard-shortcuts";
+import { AnalyticsService } from "../../services/analytics.service";
 import type { ApplicationState, LatLngAltTime, Trace, TraceVisibility } from "../../models";
 import { ZoomComponent } from "../zoom.component";
 
@@ -44,7 +47,7 @@ import { ZoomComponent } from "../zoom.component";
     templateUrl: "./traces.component.html",
     styleUrls: ["./traces.component.scss"],
     encapsulation: ViewEncapsulation.None,
-    imports: [Dir, MatButton, MatAnchor, AnalyticsDirective, SecuredImageComponent, MatProgressSpinner, DatePipe, MatMenu, MatMenuTrigger, MatMenuItem, MapComponent, PopupComponent, LayersComponent, RoutesPathComponent, MarkersForClustersComponent, GeoJSONSourceComponent, ClusterPointDirective, PointDirective, MarkerComponent, MissingPartOverlayComponent, LayerComponent, GeoJSONSourceComponent, MatButtonToggle, MatButtonToggleGroup, FormsModule, MatOption, MatLabel, MatFormField, MatSelect, OsmAttributionComponent, ControlComponent, ZoomComponent, NgClass]
+    imports: [Dir, MatButton, MatAnchor, AnalyticsDirective, SecuredImageComponent, MatProgressSpinner, DatePipe, MatMenu, MatMenuTrigger, MatMenuItem, MapComponent, PopupComponent, LayersComponent, RoutesPathComponent, MarkersForClustersComponent, GeoJSONSourceComponent, ClusterPointDirective, PointDirective, MarkerComponent, MissingPartOverlayComponent, LayerComponent, GeoJSONSourceComponent, MatButtonToggle, MatButtonToggleGroup, FormsModule, MatOption, MatLabel, MatFormField, MatSelect, OsmAttributionComponent, ControlComponent, ZoomComponent, NgClass, HighlightedTextComponent]
 })
 export class TracesComponent implements OnInit {
 
@@ -53,6 +56,7 @@ export class TracesComponent implements OnInit {
     private readonly sortDirection = signal<"asc" | "desc">("desc");
     public readonly mapStyle: StyleSpecification;
     public readonly filteredTraces = signal<Immutable<Trace[]>>([]);
+    public readonly searchTerm = signal("");
     public readonly loadingTraces = signal(false);
     public readonly selectedTrace = signal<Immutable<Trace> | undefined>(undefined);
     public readonly tracesGeoJson = signal<GeoJSON.FeatureCollection<GeoJSON.Point> | undefined>({
@@ -89,6 +93,7 @@ export class TracesComponent implements OnInit {
     private readonly store = inject(Store);
     private readonly destroyRef = inject(DestroyRef);
     private readonly dialog = inject(MatDialog);
+    private readonly analyticsService = inject(AnalyticsService);
 
     constructor() {
         this.mapStyle = this.defaultStyleService.getStyleWithPlaceholders();
@@ -176,7 +181,7 @@ export class TracesComponent implements OnInit {
             }
             this.missingParts.set(geoJson);
             this.showMap.set(true);
-            const bounds = SpatialService.getBoundsForFeatureCollection(geoJson);
+            const bounds = SpatialHelper.getBoundsForFeatureCollection(geoJson);
             this.mapService.fitBounds(bounds);
         } catch (ex) {
             this.toastService.error(ex, this.resources.unexpectedErrorPleaseTryAgainLater);
@@ -200,6 +205,7 @@ export class TracesComponent implements OnInit {
 
     private runFilter() {
         const searchTerm = this.store.selectSnapshot((s: ApplicationState) => s.inMemoryState.searchTerm).trim();
+        this.searchTerm.set(searchTerm);
         const traces = this.store.selectSnapshot((s: ApplicationState) => s.tracesState).traces;
         this.filteredTraces.set(orderBy(traces.filter((t) => this.findInTrace(t, searchTerm)), [this.sortBy()], [this.sortDirection()]));
         this.tracesGeoJson.set({
@@ -294,7 +300,7 @@ export class TracesComponent implements OnInit {
             features.push(...this.selectedRouteService.createFeaturesForRoute(route));
         }
         this.selectedTraceGeoJson.set({ type: "FeatureCollection", features });
-        const bounds = SpatialService.getBoundsForFeatureCollection(this.selectedTraceGeoJson());
+        const bounds = SpatialHelper.getBoundsForFeatureCollection(this.selectedTraceGeoJson());
         this.mapService.fitBounds(bounds, 100, { top: 100, left: 50, bottom: window.innerHeight / 2, right: 50 });
     }
 
@@ -349,6 +355,34 @@ export class TracesComponent implements OnInit {
             features: this.missingParts().features.filter(f => f !== this.selectedFeature())
         });
         this.clearSelection();
+    }
+
+    @HostListener("window:keydown", ["$event"])
+    public onMissingPartShortcutKeys(event: KeyboardEvent): void {
+        if (isTypingInTextField(event)) {
+            return;
+        }
+        const shortcutName = this.handleMissingPartShortcut(event);
+        if (shortcutName == null) {
+            return;
+        }
+        this.analyticsService.trackEvent(SHORTCUT_ANALYTICS_CATEGORY, shortcutName);
+        event.preventDefault();
+    }
+
+    private handleMissingPartShortcut(event: KeyboardEvent): string | null {
+        if (this.missingCoordinates() == null) {
+            return null;
+        }
+        if (event.key === "Escape") {
+            this.clearSelection();
+            return "Close missing part popup";
+        }
+        if (isDeleteKey(event)) {
+            this.removeMissingPart();
+            return "Delete missing part";
+        }
+        return null;
     }
 
     public clearSelection() {

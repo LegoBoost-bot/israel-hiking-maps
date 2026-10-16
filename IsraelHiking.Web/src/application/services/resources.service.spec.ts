@@ -3,6 +3,7 @@ import { TestBed, inject } from "@angular/core/testing";
 import { provideStore, Store } from "@ngxs/store";
 
 import { ResourcesService } from "./resources.service";
+import { Urls } from "../urls";
 import { GetTextCatalogService } from "./gettext-catalog.service";
 
 describe("ResourcesService", () => {
@@ -92,6 +93,16 @@ describe("ResourcesService", () => {
 
     it("Should after wikipedia file url", inject([ResourcesService], (service: ResourcesService) => {
         expect(service.getResizedImageUrl("File:456.png", 123)).toContain("Redirect/file/");
+    }));
+
+    it("Should ask the user images service for the size it needs", inject([ResourcesService], (service: ResourcesService) => {
+        const url = `${Urls.userImages}/3a7f9c2e1b4d0a95f60c2d3e4f501b6c.jpg`;
+        expect(service.getResizedImageUrl(url, 960)).toBe(`${url}?width=960`);
+    }));
+
+    it("Should keep a url that can not be resized as it is", inject([ResourcesService], (service: ResourcesService) => {
+        const url = "https://api.panoramax.xyz/api/pictures/93a6d34d-14b4-4be3-bc92-1ae93b51260e/sd.jpg";
+        expect(service.getResizedImageUrl(url, 123)).toBe(url);
     }));
 
     it("should get long distance unit when language is Hebrew", inject([ResourcesService, Store], (service: ResourcesService, store: Store) => {

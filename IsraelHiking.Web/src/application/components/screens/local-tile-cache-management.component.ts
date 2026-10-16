@@ -17,7 +17,7 @@ import {
     LocalVectorTileCacheDownloadProgress,
     LocalVectorTileCacheService
 } from "../../services/local-vector-tile-cache.service";
-import { SpatialService } from "../../services/spatial.service";
+import { SpatialHelper } from "../../services/spatial.helper";
 import { SelectedRouteService } from "../../services/selected-route.service";
 import { ToastService } from "../../services/toast.service";
 import { DEFAULT_BASE_LAYERS, HIKING_MAP, MTB_MAP } from "../../reducers/initial-state";
@@ -190,8 +190,8 @@ export class LocalTileCacheManagementComponent {
         if (this.drawingRectangleGeoJson.features.length === 0) {
             return;
         }
-        const bounds = SpatialService.getBoundsForFeatureCollection(this.drawingRectangleGeoJson);
-        const tileKeys = SpatialService.getTileKeysInBounds(bounds, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+        const bounds = SpatialHelper.getBoundsForFeatureCollection(this.drawingRectangleGeoJson);
+        const tileKeys = SpatialHelper.getTileKeysInBounds(bounds, LOCAL_VECTOR_TILE_CACHE_ZOOM);
         const region = this.localVectorTileCacheService.createRectangleRegion(tileKeys);
         this.store.dispatch(new AddLocalVectorTileCacheRegionAction(region));
         this.drawingRectangleGeoJson = { type: "FeatureCollection", features: [] };
@@ -280,11 +280,11 @@ export class LocalTileCacheManagementComponent {
                 type: "Polygon",
                 coordinates: [
                     [
-                        SpatialService.toCoordinate(SpatialService.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
-                        SpatialService.toCoordinate(SpatialService.fromTile({ x: tileX + width, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
-                        SpatialService.toCoordinate(SpatialService.fromTile({ x: tileX + width, y: tileY + height }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
-                        SpatialService.toCoordinate(SpatialService.fromTile({ x: tileX, y: tileY + height }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
-                        SpatialService.toCoordinate(SpatialService.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM))
+                        SpatialHelper.toCoordinate(SpatialHelper.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
+                        SpatialHelper.toCoordinate(SpatialHelper.fromTile({ x: tileX + width, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
+                        SpatialHelper.toCoordinate(SpatialHelper.fromTile({ x: tileX + width, y: tileY + height }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
+                        SpatialHelper.toCoordinate(SpatialHelper.fromTile({ x: tileX, y: tileY + height }, LOCAL_VECTOR_TILE_CACHE_ZOOM)),
+                        SpatialHelper.toCoordinate(SpatialHelper.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM))
                     ]
                 ]
             },

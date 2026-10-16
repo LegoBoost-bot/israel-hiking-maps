@@ -1,3 +1,2 @@
-- Allow auto dark mode
-- Improve offline routing capabilities
+- Improve translations
 - Various bug fixes and performance improvements

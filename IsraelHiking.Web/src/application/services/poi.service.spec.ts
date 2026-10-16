@@ -19,16 +19,16 @@ import { MapService } from "./map.service";
 import { OverpassTurboService } from "./overpass-turbo.service";
 import { INatureService } from "./inature.service";
 import { WikidataService } from "./wikidata.service";
-import { ImageAttributionService, type ImageAttribution } from "./image-attribution.service";
+import { ImageAttributionService } from "./image-attribution.service";
 import { ShareUrlsService } from "./share-urls.service";
 import { GeoJSONUtils } from "./geojson-utils";
 import { GeoJsonParser } from "./geojson.parser";
+import { NakebService } from "./nakeb.service";
 import { Urls } from "../urls";
 import { LayersReducer } from "../reducers/layers.reducer";
 import { AddToPoiQueueAction, OfflineReducer } from "../reducers/offline.reducer";
 import { ConfigurationReducer } from "../reducers/configuration.reducer";
 import type { ApplicationState, LatLngAltTime } from "../models";
-import { NakebService } from "./nakeb.service";
 
 describe("Poi Service", () => {
     beforeEach(() => {
@@ -108,7 +108,10 @@ describe("Poi Service", () => {
                 },
                 {
                     provide: ImageAttributionService,
-                    useValue: { getAttributionForImage: () => "aaa" }
+                    useValue: {
+                        getValidImageUrls: (f: GeoJSON.Feature) => Object.keys(f.properties)
+                            .filter(k => k.startsWith("image")).map(k => f.properties[k])
+                    }
                 },
                 GeoJsonParser,
                 RunningContextService,
@@ -253,7 +256,7 @@ describe("Poi Service", () => {
                 }
             ] as unknown as GeoJSONFeature[];
 
-            expect(poiService.getPublicRoutes({ categories: [], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "" }).features.length).toBe(0);
+            expect(poiService.getPublicRoutes({ categories: [], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "" }, poiService.getPoisFromTiles()).features.length).toBe(0);
         }
     ));
 
@@ -283,7 +286,7 @@ describe("Poi Service", () => {
                     }
                 }
             ] as unknown as GeoJSONFeature[];
-            expect(poiService.getPublicRoutes({ categories: ["Bicycle"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "" }).features.length).toBe(0);
+            expect(poiService.getPublicRoutes({ categories: ["Bicycle"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "" }, poiService.getPoisFromTiles()).features.length).toBe(0);
         }
     ));
 
@@ -313,7 +316,7 @@ describe("Poi Service", () => {
                     }
                 }
             ] as unknown as GeoJSONFeature[];
-            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Easy"], userId: "" }).features.length).toBe(0);
+            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Easy"], userId: "" }, poiService.getPoisFromTiles()).features.length).toBe(0);
         }
     ));
 
@@ -344,7 +347,7 @@ describe("Poi Service", () => {
                     }
                 }
             ] as unknown as GeoJSONFeature[];
-            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [15, 50], difficulty: ["Hard"], userId: "" }).features.length).toBe(0);
+            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [15, 50], difficulty: ["Hard"], userId: "" }, poiService.getPoisFromTiles()).features.length).toBe(0);
         }
     ));
 
@@ -375,7 +378,7 @@ describe("Poi Service", () => {
                     }
                 }
             ] as unknown as GeoJSONFeature[];
-            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 5], difficulty: ["Hard"], userId: "" }).features.length).toBe(0);
+            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 5], difficulty: ["Hard"], userId: "" }, poiService.getPoisFromTiles()).features.length).toBe(0);
         }
     ));
 
@@ -406,7 +409,7 @@ describe("Poi Service", () => {
                     }
                 }
             ] as unknown as GeoJSONFeature[];
-            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "42" }).features.length).toBe(0);
+            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "42" }, poiService.getPoisFromTiles()).features.length).toBe(0);
         }
     ));
 
@@ -436,7 +439,38 @@ describe("Poi Service", () => {
                     }
                 }
             ] as unknown as GeoJSONFeature[];
-            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "" }).features.length).toBe(1);
+            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "" }, poiService.getPoisFromTiles()).features.length).toBe(1);
+        }
+    ));
+
+    it("Should get public routes for a matching user id", inject([PoiService, Store, MapService],
+        async (poiService: PoiService, store: Store, mapServiceMock: MapService) => {
+            store.reset({
+                configuration: {
+                    language: "he"
+                }
+            });
+            mapServiceMock.getFeaturesFromTiles = () => [
+                {
+                    id: "11",
+                    geometry: {
+                        type: "LineString",
+                        coordinates: [[0, 0], [1, 1]]
+                    },
+                    properties: {
+                        poiId: "42",
+                        poiCategory: "Hiking",
+                        poiIconColor: "black",
+                        poiIcon: "icon-hike",
+                        poiLength: 10000,
+                        poiDifficulty: "Hard",
+                        poiUserId: "42",
+                        name: "line",
+                        "name:he": "line"
+                    }
+                }
+            ] as unknown as GeoJSONFeature[];
+            expect(poiService.getPublicRoutes({ categories: ["Hiking"], lengthRange: [0, 50], difficulty: ["Hard", "Easy"], userId: "42" }, poiService.getPoisFromTiles()).features.length).toBe(1);
         }
     ));
 
@@ -1192,112 +1226,6 @@ describe("Poi Service", () => {
         }
     ));
 
-    it("Should filter out incompatible images", inject([PoiService, Store],
-        async (poiService: PoiService, store: Store) => {
-            const feature = {
-                type: "Feature",
-                properties: {
-                    poiSource: "OSM",
-                    poiId: "poiId",
-                    identifier: "id",
-                    image: "invalid-image-url"
-                },
-                geometry: {
-                    type: "Point",
-                    coordinates: [1, 2]
-                }
-            } as GeoJSON.Feature;
-            store.reset({
-                poiState: {
-                    uploadMarkerData: null
-                }
-            });
-            const info = await poiService.createEditableDataAndMerge(feature);
-            expect(info.imagesUrls.length).toBe(0);
-        }
-    ));
-
-    it("Should filter out invalid wikipedia images", inject([PoiService, Store],
-        async (poiService: PoiService, store: Store) => {
-            const feature = {
-                type: "Feature",
-                properties: {
-                    poiSource: "OSM",
-                    poiId: "poiId",
-                    identifier: "id",
-                    image:
-                        "https://upload.wikimedia.org/wikipedia/commons/b/b6/Building_no_free_image_yet-he.png",
-                    image1: "https://upload.wikimedia.org/wikipedia/commons/b/b6/1.svg",
-                    image2:
-                        "https://upload.wikimedia.org/wikipedia/commons/b/b6/2.svg.png"
-                },
-                geometry: {
-                    type: "Point",
-                    coordinates: [1, 2]
-                }
-            } as GeoJSON.Feature;
-            store.reset({
-                poiState: {
-                    uploadMarkerData: null
-                }
-            });
-            const info = await poiService.createEditableDataAndMerge(feature);
-            expect(info.imagesUrls.length).toBe(0);
-        }
-    ));
-
-    it("Should filter out images with no attribution", inject([PoiService, ImageAttributionService],
-        async (poiService: PoiService, attributionService: ImageAttributionService) => {
-            const feature = {
-                type: "Feature",
-                properties: {
-                    poiSource: "OSM",
-                    poiId: "poiId",
-                    identifier: "id",
-                    image: "wikimedia.org/image-url",
-                    image1: "wikimedia.org/image-url1",
-                    image2: "wikimedia.org/image-url2"
-                },
-                geometry: {
-                    type: "Point",
-                    coordinates: [1, 2]
-                }
-            } as GeoJSON.Feature;
-            vi.spyOn(attributionService, "getAttributionForImage")
-                .mockReturnValueOnce(Promise.resolve(null))
-                .mockReturnValueOnce(Promise.resolve("aaa") as unknown as Promise<ImageAttribution>)
-                .mockReturnValueOnce(Promise.resolve(null));
-
-            const imagesUrls = await poiService.getImagesThatHaveAttribution(feature);
-            expect(imagesUrls.length).toBe(1);
-            expect(imagesUrls[0]).toBe("wikimedia.org/image-url1");
-        }
-    ));
-
-    it("Should deduplicate images with same url", inject([PoiService, ImageAttributionService],
-        async (poiService: PoiService, attributionService: ImageAttributionService) => {
-            const feature = {
-                type: "Feature",
-                properties: {
-                    poiSource: "OSM",
-                    poiId: "poiId",
-                    identifier: "id",
-                    image: "wikimedia.org/image-url()",
-                    image1: encodeURIComponent("wikimedia.org/image-url()")
-                },
-                geometry: {
-                    type: "Point",
-                    coordinates: [1, 2]
-                }
-            } as GeoJSON.Feature;
-            vi.spyOn(attributionService, "getAttributionForImage").mockReturnValue(Promise.resolve("aaa") as unknown as Promise<ImageAttribution>);
-
-            const imagesUrls = await poiService.getImagesThatHaveAttribution(feature);
-            expect(imagesUrls.length).toBe(1);
-            expect(imagesUrls[0]).toBe("wikimedia.org/image-url()");
-        }
-    ));
-
     it("should get closest point from overpass", inject([PoiService, OverpassTurboService],
         async (poiService: PoiService, overpass: OverpassTurboService) => {
             overpass.getPointsInArea = () => {
@@ -1379,4 +1307,16 @@ describe("Poi Service", () => {
             expect(results.whatsapp).toContain("OSM");
         }
     ));
+
+    it("should return has extra data for feature with description", inject([PoiService], (poiService: PoiService) => {
+        expect(poiService.hasExtraData({ properties: { "description:he": "desc" } } as unknown as GeoJSON.Feature, "he")).toBeTruthy();
+    }));
+
+    it("should return has extra data for feature with image", inject([PoiService], (poiService: PoiService) => {
+        expect(poiService.hasExtraData({ properties: { image: "File:valid-image.png" } } as unknown as GeoJSON.Feature, "he")).toBeTruthy();
+    }));
+
+    it("should return has extra data for feature with mtb:name", inject([PoiService], (poiService: PoiService) => {
+        expect(poiService.hasExtraData({ properties: { "mtb:name": "mtb:name" } } as unknown as GeoJSON.Feature, "he")).toBeTruthy();
+    }));
 });

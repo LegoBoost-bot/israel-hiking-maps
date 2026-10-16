@@ -12,7 +12,7 @@ import { timeout } from "rxjs/operators";
 import pLimit from "p-limit";
 import type { RasterDEMSourceSpecification, StyleSpecification, VectorSourceSpecification } from "maplibre-gl";
 
-import { SpatialService } from "./spatial.service";
+import { SpatialHelper } from "./spatial.helper";
 import { LoggingService } from "./logging.service";
 import { Urls } from "../urls";
 import { Store } from "@ngxs/store";
@@ -96,7 +96,7 @@ export class LocalVectorTileCacheService {
     }
 
     public getTileKeysForMapClick(latlng: LatLngAltTime): string[] {
-        const tile = SpatialService.toTile(latlng, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+        const tile = SpatialHelper.toTile(latlng, LOCAL_VECTOR_TILE_CACHE_ZOOM);
         return [this.getTileKey(Math.floor(tile.x), Math.floor(tile.y))];
     }
 
@@ -105,18 +105,18 @@ export class LocalVectorTileCacheService {
         if (latlngs.length === 0) {
             return [];
         }
-        const circles = latlngs.map(latlng => circle(SpatialService.toCoordinate(latlng), bufferMeters, {
+        const circles = latlngs.map(latlng => circle(SpatialHelper.toCoordinate(latlng), bufferMeters, {
             units: "meters",
             steps: 8
         }));
         const featureCollectionOfCircles = featureCollection(circles);
-        const bounds = SpatialService.getBoundsForFeatureCollection(featureCollectionOfCircles);
-        const candidateTiles = SpatialService.getTileKeysInBounds(bounds, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+        const bounds = SpatialHelper.getBoundsForFeatureCollection(featureCollectionOfCircles);
+        const candidateTiles = SpatialHelper.getTileKeysInBounds(bounds, LOCAL_VECTOR_TILE_CACHE_ZOOM);
 
         return candidateTiles.filter(tileKey => {
             const { tileX, tileY } = this.parseTileKey(tileKey);
-            const northEast = SpatialService.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM);
-            const southWest = SpatialService.fromTile({ x: tileX + 1, y: tileY + 1 }, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+            const northEast = SpatialHelper.fromTile({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+            const southWest = SpatialHelper.fromTile({ x: tileX + 1, y: tileY + 1 }, LOCAL_VECTOR_TILE_CACHE_ZOOM);
             const tilePolygon = bboxPolygon([northEast.lng, southWest.lat, southWest.lng, northEast.lat]);
             return circles.some(circleFeature => booleanIntersects(tilePolygon, circleFeature));
         });
@@ -313,7 +313,7 @@ export class LocalVectorTileCacheService {
             }
             return matchingTileKeys;
         }
-        const parentTile = SpatialService.getParentZoomTileCoordinates({ x, y }, z, LOCAL_VECTOR_TILE_CACHE_ZOOM);
+        const parentTile = SpatialHelper.getParentZoomTileCoordinates({ x, y }, z, LOCAL_VECTOR_TILE_CACHE_ZOOM);
         const tileKey = this.getTileKey(parentTile.tileX, parentTile.tileY);
         return savedTileKeys.has(tileKey) ? [tileKey] : [];
     }
@@ -341,7 +341,7 @@ export class LocalVectorTileCacheService {
                 const { tileX, tileY } = this.parseTileKey(tileKey);
                 for (const source of sources) {
                     for (let z = source.minzoom; z <= source.maxzoom; z++) {
-                        const { tileX: x, tileY: y } = SpatialService.getParentZoomTileCoordinates({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM, z);
+                        const { tileX: x, tileY: y } = SpatialHelper.getParentZoomTileCoordinates({ x: tileX, y: tileY }, LOCAL_VECTOR_TILE_CACHE_ZOOM, z);
                         const url = this.createTileUrl(source.template, z, x, y);
                         const existingTask = tasksByUrl.get(url);
                         if (existingTask != null) {

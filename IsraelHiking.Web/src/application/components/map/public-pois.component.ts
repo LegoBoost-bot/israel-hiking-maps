@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, OnInit, signal, computed } from "@angular/core";
+import { Component, HostListener, DestroyRef, inject, OnInit, signal, computed } from "@angular/core";
 
 import { Dir } from "@angular/cdk/bidi";
 import { MatButton } from "@angular/material/button";
@@ -19,8 +19,10 @@ import { PoiService } from "../../services/poi.service";
 import { RouteStrings } from "../../services/hash.service";
 import { ResourcesService } from "../../services/resources.service";
 import { SelectedRouteService } from "../../services/selected-route.service";
-import { SpatialService } from "../../services/spatial.service";
+import { SpatialHelper } from "../../services/spatial.helper";
 import { NavigateHereService } from "../../services/navigate-here.service";
+import { isTypingInTextField, SHORTCUT_ANALYTICS_CATEGORY } from "../../services/keyboard-shortcuts";
+import { AnalyticsService } from "../../services/analytics.service";
 import { SetSelectedPoiAction } from "../../reducers/poi.reducer";
 import { AddPrivatePoiAction } from "../../reducers/routes.reducer";
 import { GeoJSONUtils } from "../../services/geojson-utils";
@@ -63,8 +65,37 @@ export class PublicPoisComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
     private readonly mapComponent = inject(MapComponent);
     private readonly mapService = inject(MapService);
+    private readonly analyticsService = inject(AnalyticsService);
 
-    public readonly getSelectedFeatureLatlng = computed(() => SpatialService.toLatLng(this.selectedPoiFeature().geometry.coordinates as [number, number]));
+    public readonly getSelectedFeatureLatlng = computed(() => SpatialHelper.toLatLng(this.selectedPoiFeature().geometry.coordinates as [number, number]));
+
+    @HostListener("window:keydown", ["$event"])
+    public onPopupShortcutKeys(event: KeyboardEvent): void {
+        if (isTypingInTextField(event)) {
+            return;
+        }
+        const shortcutName = this.closePopupsOnEscape(event);
+        if (shortcutName == null) {
+            return;
+        }
+        this.analyticsService.trackEvent(SHORTCUT_ANALYTICS_CATEGORY, shortcutName);
+        event.preventDefault();
+    }
+
+    private closePopupsOnEscape(event: KeyboardEvent): string | null {
+        if (event.key !== "Escape") {
+            return null;
+        }
+        if (this.selectedCluster() != null) {
+            this.clearSelectedClusterPopup();
+            return "Close POIs cluster popup";
+        }
+        if (this.isShowCoordinatesPopup()) {
+            this.isShowCoordinatesPopup.set(false);
+            return "Close coordinates popup";
+        }
+        return null;
+    }
 
     public ngOnInit() {
         this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
@@ -85,8 +116,8 @@ export class PublicPoisComponent implements OnInit {
         this.store.select((state: ApplicationState) => state.locationState).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (location) => {
             const z = Math.floor(location.zoom);
             const bounds: Bounds = this.mapService.getMapBounds();
-            const sw = SpatialService.toTile(bounds.southWest, z);
-            const ne = SpatialService.toTile(bounds.northEast, z);
+            const sw = SpatialHelper.toTile(bounds.southWest, z);
+            const ne = SpatialHelper.toTile(bounds.northEast, z);
             const minX = Math.floor(Math.min(sw.x, ne.x));
             const maxX = Math.floor(Math.max(sw.x, ne.x));
             const minY = Math.floor(Math.min(sw.y, ne.y));
@@ -148,8 +179,8 @@ export class PublicPoisComponent implements OnInit {
             PublicPoisComponent.MAX_MENU_POINTS_IN_CLUSTER, 0) as GeoJSON.Feature<GeoJSON.Point>[];
         const language = this.resources.getCurrentLanguageCodeSimplified();
         features.sort((a, b) => {
-            if (GeoJSONUtils.hasExtraData(a, language) !== GeoJSONUtils.hasExtraData(b, language)) {
-                return GeoJSONUtils.hasExtraData(a, language) ? -1 : 1;
+            if (this.hasExtraData(a) !== this.hasExtraData(b)) {
+                return this.hasExtraData(a) ? -1 : 1;
             }
             return GeoJSONUtils.getTitle(a, language).localeCompare(GeoJSONUtils.getTitle(b, language));
         });
@@ -181,7 +212,7 @@ export class PublicPoisComponent implements OnInit {
     }
 
     public hasExtraData(feature: GeoJSON.Feature<GeoJSON.Point>): boolean {
-        return GeoJSONUtils.hasExtraData(feature, this.resources.getCurrentLanguageCodeSimplified());
+        return this.poiService.hasExtraData(feature, this.resources.getCurrentLanguageCodeSimplified());
     }
 
     public isCoordinatesFeature(feature: Immutable<GeoJSON.Feature>) {

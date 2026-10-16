@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { inject, Service } from "@angular/core";
 import { firstValueFrom, timeout } from "rxjs";
 import { GeoJSONUtils } from "./geojson-utils";
-import { SpatialService } from "./spatial.service";
+import { SpatialHelper } from "./spatial.helper";
 
 type HttpPoiResponse = {
     points: HttpPoi[];
@@ -79,7 +79,7 @@ export class HttpPoiService {
                 this.addImages(feature, poi.images);
             }
 
-            GeoJSONUtils.setLocation(feature, SpatialService.toLatLng([poi.lon, poi.lat]));
+            GeoJSONUtils.setLocation(feature, SpatialHelper.toLatLng([poi.lon, poi.lat]));
 
             this.addWebsite(feature);
 

@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation, ElementRef, inject, viewChildren, DestroyRef, signal, ViewContainerRef } from "@angular/core";
+import { Component, HostListener, ViewEncapsulation, ElementRef, inject, viewChildren, DestroyRef, signal, ViewContainerRef } from "@angular/core";
 import { CoordinatePopupComponent } from "./coordinate-popup.component";
 import { NgStyle } from "@angular/common";
 import { MatSidenavContainer, MatSidenav } from "@angular/material/sidenav";
@@ -31,6 +31,9 @@ import { MapService } from "../../services/map.service";
 import { RunningContextService } from "../../services/running-context.service";
 import { DefaultStyleService } from "../../services/default-style.service";
 import { SidebarService } from "../../services/sidebar.service";
+import { isTypingInTextField, isMapPopupOpen, SHORTCUT_ANALYTICS_CATEGORY } from "../../services/keyboard-shortcuts";
+import { AnalyticsService } from "../../services/analytics.service";
+import { MatDialog } from "@angular/material/dialog";
 import type { ApplicationState, LocationState, LatLngAltTime } from "../../models";
 import { CoordinatesService } from "../../services/coordinates.service";
 import { ElevationProvider } from "../../services/elevation.provider";
@@ -66,6 +69,8 @@ export class MainMapComponent {
     private readonly elevationProvider = inject(ElevationProvider);
     private readonly store = inject(Store);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly analyticsService = inject(AnalyticsService);
+    private readonly matDialog = inject(MatDialog);
 
     private addedControls: IControl[] = [];
     private map: Map;
@@ -91,6 +96,30 @@ export class MainMapComponent {
         });
         this.sidenavViewName.set(this.sidebarService.viewName);
         this.sidenavVisible.set(this.sidebarService.isSidebarOpen());
+    }
+
+    @HostListener("window:keydown", ["$event"])
+    public onSidebarShortcutKeys(event: KeyboardEvent): void {
+        if (isTypingInTextField(event)) {
+            return;
+        }
+        const shortcutName = this.closeSidebarOnEscape(event);
+        if (shortcutName == null) {
+            return;
+        }
+        this.analyticsService.trackEvent(SHORTCUT_ANALYTICS_CATEGORY, shortcutName);
+        event.preventDefault();
+    }
+
+    private closeSidebarOnEscape(event: KeyboardEvent): string | null {
+        if (event.key !== "Escape" || !this.sidebarService.isSidebarOpen()) {
+            return null;
+        }
+        if (isMapPopupOpen() || this.matDialog.openDialogs.length > 0) {
+            return null;
+        }
+        this.sidebarService.hide();
+        return "Close sidebar";
     }
 
     public mapLoaded(map: Map) {
@@ -204,7 +233,7 @@ export class MainMapComponent {
     }
 
     public pitchChanged() {
-        if (this.runningContextService.isMobile || !this.map) {
+        if (!this.map) {
             return;
         }
         const pitch = this.map.getPitch();

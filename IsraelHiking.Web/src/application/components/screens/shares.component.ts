@@ -30,7 +30,7 @@ import { DefaultStyleService } from "../../services/default-style.service";
 import { ShareUrlsService } from "../../services/share-urls.service";
 import { SelectedRouteService } from "../../services/selected-route.service";
 import { MapService } from "../../services/map.service";
-import { SpatialService } from "../../services/spatial.service";
+import { SpatialHelper } from "../../services/spatial.helper";
 import { ToastService } from "../../services/toast.service";
 import { DataContainerService } from "../../services/data-container.service";
 import { RouteStrings } from "../../services/hash.service";
@@ -49,6 +49,7 @@ export class SharesComponent implements OnInit {
     public readonly mapStyle: StyleSpecification;
     public readonly selectedShareUrl = signal<Immutable<ShareUrl>>(null);
     public readonly filteredShareUrls = signal<Immutable<ShareUrl[]>>([]);
+    public readonly searchTerm = signal("");
     public readonly routesGeoJson = signal<GeoJSON.FeatureCollection>({ type: "FeatureCollection", features: [] });
     public readonly sortBy = signal<keyof ShareUrl>("lastModifiedDate");
     private readonly sortDirection = signal<"asc" | "desc">("desc");
@@ -120,6 +121,7 @@ export class SharesComponent implements OnInit {
     private async runFilter() {
         const shareUrls = this.store.selectSnapshot((s: ApplicationState) => s.shareUrlsState.shareUrls);
         const searchTerm = this.store.selectSnapshot((s: ApplicationState) => s.inMemoryState.searchTerm);
+        this.searchTerm.set(searchTerm.trim());
         const filteredShareUrls = shareUrls.filter((share: Immutable<ShareUrl>) => {
             for (const key in this.filter) {
                 const propValue = share[key as keyof ShareUrl] as string;
@@ -166,7 +168,7 @@ export class SharesComponent implements OnInit {
             features.push(...this.selectedRouteService.createFeaturesForRoute(route));
         }
         this.routesGeoJson.set({ type: "FeatureCollection", features });
-        const bounds = SpatialService.getBoundsForFeatureCollection(this.routesGeoJson());
+        const bounds = SpatialHelper.getBoundsForFeatureCollection(this.routesGeoJson());
         this.mapService.fitBounds(bounds, 100, { top: 150, left: 50, bottom: window.innerHeight / 2, right: 50 });
     }
 
@@ -185,7 +187,7 @@ export class SharesComponent implements OnInit {
                     await this.shareUrlsService.deleteShareUrl(shareUrl);
                     this.runFilter();
                 } catch (ex) {
-                    this.toastService.error(ex, this.resources.unableToDeleteCloudSave);
+                    this.toastService.error(ex, this.resources.unableToDeleteSavedRoute);
                 }
             },
             type: "YesNo"

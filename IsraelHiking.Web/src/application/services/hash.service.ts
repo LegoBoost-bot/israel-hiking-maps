@@ -40,6 +40,7 @@ export class RouteStrings {
     public static readonly ROUTE_LOCAL_TILE_CACHE = "/local-tile-cache";
     public static readonly ROUTE_TRACES = "/traces";
     public static readonly ROUTE_ABOUT = "/about";
+    public static readonly ROUTE_SETTINGS = "/settings";
     public static readonly COORDINATES = "Coordinates";
 
     public static readonly LAT = "lat";
@@ -50,6 +51,7 @@ export class RouteStrings {
     public static readonly BASE_LAYER = "baselayer";
     public static readonly LANGUAGE = "language";
     public static readonly EDIT = "edit";
+    public static readonly HIGHLIGHT = "highlight";
 }
 
 @Service()

@@ -27,11 +27,17 @@ using NeoSmart.Caching.Sqlite;
 using Scalar.AspNetCore;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
+using NLog.Extensions.Logging;
 using NLog.Web;
 using OsmSharp.IO.API;
 
-NLog.LogManager.Setup().LoadConfigurationFromAppSettings();
+var configFolder = Environment.GetEnvironmentVariable("CONFIG_FOLDER") ?? string.Empty;
 var builder = WebApplication.CreateBuilder(args);
+if (configFolder.Length > 0)
+{
+    builder.Configuration.AddJsonFile(Path.Combine(configFolder, "appsettings.json"), optional: false, reloadOnChange: true);
+}
+NLog.LogManager.Setup().LoadConfigurationFromSection(builder.Configuration);
 SetupServices(builder.Services, builder.Environment.IsDevelopment());
 builder.Logging.ClearProviders();
 builder.Host.UseNLog();
@@ -122,7 +128,7 @@ void SetupServices(IServiceCollection services, bool isDevelopment)
     services.AddOptions();
 
     var config = new ConfigurationBuilder()
-        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+        .AddJsonFile(Path.Combine(configFolder, "appsettings.json"), optional: false, reloadOnChange: true)
         .Build();
     services.Configure<ConfigurationData>(config);
     var nonPublicConfiguration = new ConfigurationBuilder();
@@ -132,7 +138,7 @@ void SetupServices(IServiceCollection services, bool isDevelopment)
     }
     else
     {
-        nonPublicConfiguration.AddJsonFile("nonPublic.json");
+        nonPublicConfiguration.AddJsonFile(Path.Combine(configFolder, "nonPublic.json"));
     }
     services.Configure<NonPublicConfigurationData>(nonPublicConfiguration.Build());
 

@@ -14,7 +14,7 @@ import { Map, LngLatBounds } from "maplibre-gl";
 
 import { ResourcesService } from "../../services/resources.service";
 import { PrintService } from "../../services/print.service";
-import { SpatialService } from "../../services/spatial.service";
+import { SpatialHelper } from "../../services/spatial.helper";
 import { MapService } from "../../services/map.service";
 import type { RouteData, LatLngAltTime, ApplicationState } from "../../models";
 
@@ -129,7 +129,7 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
-        const bounds = SpatialService.getBounds(latlngs);
+        const bounds = SpatialHelper.getBounds(latlngs);
 
         this.pages = this.printService.getPagesCount(this.scale, this.customScale, this.orientation, bounds);
 
@@ -179,13 +179,13 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
         }
 
         if (latlngs.length > 0) {
-            const bounds = SpatialService.getBounds(latlngs);
+            const bounds = SpatialHelper.getBounds(latlngs);
             let printBounds: LngLatBounds;
 
             if (this.scale !== "fit") {
                 const params = this.printService.getPrintParams(this.scale, this.customScale, this.orientation, bounds, this.splitToPages);
 
-                const center = SpatialService.getCenter([bounds.southWest, bounds.northEast]);
+                const center = SpatialHelper.getCenter([bounds.southWest, bounds.northEast]);
 
                 const latDelta = (params.totalHeightMeters / 2) / 111320;
                 const lngDelta = (params.totalWidthMeters / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
@@ -304,7 +304,7 @@ export class ExportForPrintDialogComponent implements AfterViewInit, OnDestroy {
             } else if (this.scale !== "fit" && !this.splitToPages) {
                 const params = this.printService.getPrintParams(this.scale, this.customScale, this.orientation, bounds, false);
 
-                const center = SpatialService.getCenter([bounds.southWest, bounds.northEast]);
+                const center = SpatialHelper.getCenter([bounds.southWest, bounds.northEast]);
                 const latDelta = (params.pageHeightMeters / 2) / 111320;
                 const lngDelta = (params.pageWidthMeters / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
 
