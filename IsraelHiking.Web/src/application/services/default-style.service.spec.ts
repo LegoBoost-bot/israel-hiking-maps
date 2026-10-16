@@ -43,7 +43,8 @@ describe("DefaultStyleService", () => {
                         endOfOverlays: "endOfOverlays",
                         endOfClusters: "endOfClusters",
                         endOfRoutes: "endOfRoutes",
-                        getCurrentLanguageCodeSimplified: () => "en"
+                        getCurrentLanguageCodeSimplified: () => "en",
+                        getMapLanguageCodeSimplified: () => "en"
                     }
                 },
                 {

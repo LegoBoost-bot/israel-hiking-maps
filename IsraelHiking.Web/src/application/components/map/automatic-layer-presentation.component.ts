@@ -6,6 +6,7 @@ import type { SourceSpecification, LayerSpecification } from "maplibre-gl";
 
 import { DefaultStyleService } from "../../services/default-style.service";
 import { ResourcesService } from "../../services/resources.service";
+import { selectMapLanguageCode } from "../../reducers/configuration.reducer";
 import type { ApplicationState, EditableLayer, LanguageCode, LayerData } from "../../models";
 
 /**
@@ -49,12 +50,12 @@ export class AutomaticLayerPresentationComponent implements OnInit, OnChanges, O
 
     public ngOnInit() {
         this.addLayerRecreationQuqueItem(null, this.layerData());
-        this.currentLanguageCode = this.store.selectSnapshot((s: ApplicationState) => s.configuration).language.code;
-        this.subscriptions.push(this.store.select((state: ApplicationState) => state.configuration.language).subscribe((language) => {
-            if (this.currentLanguageCode !== language.code) {
+        this.currentLanguageCode = this.store.selectSnapshot(selectMapLanguageCode);
+        this.subscriptions.push(this.store.select(selectMapLanguageCode).subscribe((languageCode) => {
+            if (this.currentLanguageCode !== languageCode) {
                 this.addLayerRecreationQuqueItem(this.layerData(), this.layerData());
             }
-            this.currentLanguageCode = language.code;
+            this.currentLanguageCode = languageCode;
         }));
         this.subscriptions.push(this.store.select((state: ApplicationState) => state.inMemoryState.downloadedTiles).subscribe(() => {
             this.addLayerRecreationQuqueItem(this.layerData(), this.layerData());

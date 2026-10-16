@@ -90,7 +90,7 @@ export class LayersService {
         if (!baseLayerAddress) {
             return defaultAddress;
         }
-        const language = this.resources.getCurrentLanguageCodeSimplified() === "he" ? "Hebrew" : "English";
+        const language = this.resources.getMapLanguageCodeSimplified() === "he" ? "Hebrew" : "English";
         let tiles = "Tiles";
         if (baseLayerAddress.endsWith(".json")) {
             const styleKey = baseLayerAddress.replace(".json", "").split("/").splice(-1)[0];

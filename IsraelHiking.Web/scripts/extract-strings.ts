@@ -6,12 +6,8 @@ const resourcesFilePath = "./src/application/services/resources.service.ts";
 const sourceFile = "./src/application/services/resources.service.ts";
 
 const fileContent = fs.readFileSync(sourceFile, "utf-8");
-const jsonKeys = fileContent.replace(/\"\s*\+\s*\"/g, "")
-    .split("\n")
-    .filter(line => line.includes("getString(\""))
-    .join("\n")
-    .replace(/.*getString\(\"(.*)\"\);?/g, "$1")
-    .split("\n")
+const jsonKeys = Array.from(fileContent.replace(/"\s*\+\s*"/g, "").matchAll(/getString\(\s*"((?:[^"\\]|\\.)*)"\s*\)/g))
+    .map(match => JSON.parse(`"${match[1]}"`) as string)
     .sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}));
 
 

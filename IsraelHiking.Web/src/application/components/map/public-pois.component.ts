@@ -25,6 +25,7 @@ import { isTypingInTextField, SHORTCUT_ANALYTICS_CATEGORY } from "../../services
 import { AnalyticsService } from "../../services/analytics.service";
 import { SetSelectedPoiAction } from "../../reducers/poi.reducer";
 import { AddPrivatePoiAction } from "../../reducers/routes.reducer";
+import { selectMapLanguageCode } from "../../reducers/configuration.reducer";
 import { GeoJSONUtils } from "../../services/geojson-utils";
 import { MapService } from "../../services/map.service";
 import { Urls } from "../../urls";
@@ -99,7 +100,7 @@ export class PublicPoisComponent implements OnInit {
 
     public ngOnInit() {
         this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
-        this.store.select((state: ApplicationState) => state.configuration.language).pipe(takeUntilDestroyed(this.destroyRef), skip(1)).subscribe(() => {
+        this.store.select(selectMapLanguageCode).pipe(takeUntilDestroyed(this.destroyRef), skip(1)).subscribe(() => {
             this.poiGeoJsonData.set(this.poiService.getPoisGeoJson());
         });
         this.store.select((state: ApplicationState) => state.layersState.visiblePoisCategories).pipe(takeUntilDestroyed(this.destroyRef), skip(1)).subscribe(() => {
@@ -177,7 +178,7 @@ export class PublicPoisComponent implements OnInit {
         }
         const features = await sourceComponent.getClusterLeaves(feature.properties.cluster_id,
             PublicPoisComponent.MAX_MENU_POINTS_IN_CLUSTER, 0) as GeoJSON.Feature<GeoJSON.Point>[];
-        const language = this.resources.getCurrentLanguageCodeSimplified();
+        const language = this.resources.getMapLanguageCodeSimplified();
         features.sort((a, b) => {
             if (this.hasExtraData(a) !== this.hasExtraData(b)) {
                 return this.hasExtraData(a) ? -1 : 1;
@@ -208,11 +209,11 @@ export class PublicPoisComponent implements OnInit {
     }
 
     public getTitle(feature: GeoJSON.Feature<GeoJSON.Point>): string {
-        return GeoJSONUtils.getTitle(feature, this.resources.getCurrentLanguageCodeSimplified());
+        return GeoJSONUtils.getTitle(feature, this.resources.getMapLanguageCodeSimplified());
     }
 
     public hasExtraData(feature: GeoJSON.Feature<GeoJSON.Point>): boolean {
-        return this.poiService.hasExtraData(feature, this.resources.getCurrentLanguageCodeSimplified());
+        return this.poiService.hasExtraData(feature, this.resources.getMapLanguageCodeSimplified());
     }
 
     public isCoordinatesFeature(feature: Immutable<GeoJSON.Feature>) {

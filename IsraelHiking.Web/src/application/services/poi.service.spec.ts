@@ -65,7 +65,8 @@ describe("Poi Service", () => {
                 {
                     provide: ResourcesService,
                     useValue: {
-                        getCurrentLanguageCodeSimplified: () => "he"
+                        getCurrentLanguageCodeSimplified: () => "he",
+                        getMapLanguageCodeSimplified: () => "he"
                     }
                 },
                 { provide: HashService, useValue: hashService },

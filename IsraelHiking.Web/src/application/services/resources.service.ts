@@ -3,7 +3,7 @@ import { Direction } from "@angular/cdk/bidi";
 import { Store } from "@ngxs/store";
 
 import { GetTextCatalogService } from "./gettext-catalog.service";
-import { SetLanguageAction } from "../reducers/configuration.reducer";
+import { SetLanguageAction, selectMapLanguageCode } from "../reducers/configuration.reducer";
 import { AVAILABLE_LANGUAGES } from "../reducers/initial-state";
 import { Urls } from "../urls";
 import type { ApplicationState, Language, LanguageCode } from "../models";
@@ -112,6 +112,8 @@ export class ResourcesService {
     public close: string;
     public layerNamePlaceHolder: string;
     public language: string;
+    public mapLanguage: string;
+    public sameAsAppLanguage: string;
     public elevation: string;
     public slope: string;
     public convertToRoute: string;
@@ -523,7 +525,7 @@ export class ResourcesService {
     }
 
     private async setLanguageInternal(language: Language): Promise<void> {
-        await this.gettextCatalog.loadRemote(Urls.translations + language.code + ".json?sign=1791234281036");
+        await this.gettextCatalog.loadRemote(Urls.translations + language.code + ".json?sign=1792144941681");
         this.about = this.gettextCatalog.getString("About");
         this.legend = this.gettextCatalog.getString("Legend");
         this.clear = this.gettextCatalog.getString("Clear");
@@ -585,6 +587,8 @@ export class ResourcesService {
         this.close = this.gettextCatalog.getString("Close");
         this.layerNamePlaceHolder = this.gettextCatalog.getString("The name to be displayed in the maps or overlays list");
         this.language = this.gettextCatalog.getString("Language");
+        this.mapLanguage = this.gettextCatalog.getString("Map language");
+        this.sameAsAppLanguage = this.gettextCatalog.getString("Same as app language");
         this.elevation = this.gettextCatalog.getString("Elevation");
         this.slope = this.gettextCatalog.getString("Slope");
         this.convertToRoute = this.gettextCatalog.getString("Convert to Route");
@@ -1047,6 +1051,13 @@ export class ResourcesService {
      */
     public getCurrentLanguageCode(): string {
         return this.store.selectSnapshot((s: ApplicationState) => s.configuration).language.code;
+    }
+
+    /**
+     * The language of the labels and sites drawn on the map, which the user can set apart from the app's language.
+     */
+    public getMapLanguageCodeSimplified(): string {
+        return this.store.selectSnapshot(selectMapLanguageCode).split("-")[0];
     }
 
     public getResizedImageUrl(imageUrl: string, size: number) {

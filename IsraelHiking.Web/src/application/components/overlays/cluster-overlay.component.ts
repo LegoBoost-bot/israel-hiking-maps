@@ -27,11 +27,11 @@ export class ClusterOverlayComponent {
     private readonly poiService = inject(PoiService);
 
     public getTitle(feature: GeoJSON.Feature) {
-        return GeoJSONUtils.getTitle(feature, this.resources.getCurrentLanguageCodeSimplified());
+        return GeoJSONUtils.getTitle(feature, this.resources.getMapLanguageCodeSimplified());
     }
 
     public hasExtraData(feature: GeoJSON.Feature): boolean {
-        return this.poiService.hasExtraData(feature, this.resources.getCurrentLanguageCodeSimplified());
+        return this.poiService.hasExtraData(feature, this.resources.getMapLanguageCodeSimplified());
     }
 
     public clickOnItem(feature: GeoJSON.Feature) {

@@ -42,6 +42,33 @@ describe("ResourcesService", () => {
         }
     ));
 
+    it("Should draw the map in the app's language when no map language was picked", inject([ResourcesService, Store],
+        (service: ResourcesService, store: Store) => {
+            store.reset({
+                configuration: {
+                    language: { code: "en-US" },
+                    mapLanguage: null
+                }
+            });
+
+            expect(service.getMapLanguageCodeSimplified()).toBe("en");
+        }
+    ));
+
+    it("Should draw the map in the picked map language regardless of the app's language", inject([ResourcesService, Store],
+        (service: ResourcesService, store: Store) => {
+            store.reset({
+                configuration: {
+                    language: { code: "en-US" },
+                    mapLanguage: "he"
+                }
+            });
+
+            expect(service.getMapLanguageCodeSimplified()).toBe("he");
+            expect(service.getCurrentLanguageCodeSimplified()).toBe("en");
+        }
+    ));
+
     it("Should facilitate translation", inject([ResourcesService, GetTextCatalogService],
         (service: ResourcesService, getText: GetTextCatalogService) => {
             vi.spyOn(getText, "getString").mockReturnValue("word's translation");

@@ -12,6 +12,15 @@
             analyticsLabel="Select language {{language.code}}">{{language.label}}</mat-radio-button>
           }
         </mat-radio-group>
+        <mat-form-field class="w-full mt-4" subscriptSizing="dynamic">
+          <mat-label>{{resources.mapLanguage}}</mat-label>
+          <mat-select [(ngModel)]="selectedMapLanguageCode">
+            <mat-option [value]="sameAsAppLanguage">{{resources.sameAsAppLanguage}}</mat-option>
+            @for (language of availableLanguages; track language) {
+            <mat-option [value]="language.code">{{language.label}}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       </div>
       <ng-lottie style="padding-right: 13px; max-height: 280px;" [options]="lottieLanguage"></ng-lottie>
     </div>

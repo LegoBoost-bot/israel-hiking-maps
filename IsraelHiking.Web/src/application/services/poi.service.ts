@@ -252,7 +252,7 @@ export class PoiService {
 
     private filterFeatures(features: GeoJSON.Feature<GeoJSON.Point, PoiProperties>[], categories: Immutable<string[]>): GeoJSON.Feature<GeoJSON.Point, PoiProperties>[] {
         const visibleFeatures = [];
-        const language = this.resources.getCurrentLanguageCodeSimplified();
+        const language = this.resources.getMapLanguageCodeSimplified();
         for (const feature of features) {
             if (categories.indexOf(feature.properties.poiCategory) === -1) {
                 continue;

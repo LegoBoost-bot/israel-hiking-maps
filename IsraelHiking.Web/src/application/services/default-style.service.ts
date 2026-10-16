@@ -226,7 +226,7 @@ export class DefaultStyleService {
             return this.createRasterLayer(layerData, isVisible);
         } else {
             const isBuiltInBaseLayer = DEFAULT_BASE_LAYERS.some(l => l.key === layerData.key);
-            const language = this.resources.getCurrentLanguageCodeSimplified();
+            const language = this.resources.getMapLanguageCodeSimplified();
             const units = this.store.selectSnapshot((s: ApplicationState) => s.configuration.units);
 
             let styleAsText = await this.fileService.getStyleJsonContent(layerData.address, isBuiltInBaseLayer);

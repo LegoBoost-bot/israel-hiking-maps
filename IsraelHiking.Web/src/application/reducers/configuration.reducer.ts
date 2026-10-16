@@ -3,12 +3,24 @@ import { Injectable } from "@angular/core";
 import { produce } from "immer";
 
 import { initialState } from "./initial-state";
-import type { ConfigurationState, Language, BatteryOptimizationType, ThemeSetting } from "../models";
+import type { ApplicationState, ConfigurationState, Language, LanguageCode, BatteryOptimizationType, ThemeSetting } from "../models";
 
 
 export class SetLanguageAction {
     public static readonly type = "[Configuration] SetLanguageAction";
     constructor(public readonly language: Language) { }
+}
+
+export class SetMapLanguageAction {
+    public static readonly type = "[Configuration] SetMapLanguageAction";
+    constructor(public readonly mapLanguage: LanguageCode | null) { }
+}
+
+/**
+ * The language the map is drawn in - the map language when one was picked, and the app's language otherwise.
+ */
+export function selectMapLanguageCode(state: ApplicationState): LanguageCode {
+    return state.configuration.mapLanguage ?? state.configuration.language.code;
 }
 
 export class SetBatteryOptimizationTypeAction {
@@ -122,6 +134,14 @@ export class ConfigurationReducer {
     public setLanguage(ctx: StateContext<ConfigurationState>, action: SetLanguageAction) {
         ctx.setState(produce(ctx.getState(), lastState => {
             lastState.language = action.language;
+            return lastState;
+        }));
+    }
+
+    @Action(SetMapLanguageAction)
+    public setMapLanguage(ctx: StateContext<ConfigurationState>, action: SetMapLanguageAction) {
+        ctx.setState(produce(ctx.getState(), lastState => {
+            lastState.mapLanguage = action.mapLanguage;
             return lastState;
         }));
     }

@@ -32,9 +32,9 @@ describe("LayersService", () => {
                 {
                     provide: ResourcesService,
                     useValue: {
-                        getCurrentLanguageCodeSimplified: vi
+                        getMapLanguageCodeSimplified: vi
                             .fn()
-                            .mockName("ResourcesService.getCurrentLanguageCodeSimplified")
+                            .mockName("ResourcesService.getMapLanguageCodeSimplified")
                     }
                 }
             ]
@@ -280,13 +280,13 @@ describe("LayersService", () => {
                 }
             });
 
-            (resourcesService.getCurrentLanguageCodeSimplified as Mock).mockReturnValue("he");
+            (resourcesService.getMapLanguageCodeSimplified as Mock).mockReturnValue("he");
             const address = service.getSelectedBaseLayerAddressForOSM();
             expect(address).toEqual(`${Urls.baseTilesAddress}/Hebrew/Tiles/{z}/{x}/{y}.png`);
         }
     ));
 
-    it("should return English tiles when language is not Hebrew", inject([LayersService, Store, ResourcesService],
+    it("should return English tiles when the map language is not Hebrew", inject([LayersService, Store, ResourcesService],
         (service: LayersService, store: Store, resourcesService: ResourcesService) => {
             const baseLayer: EditableLayer = {
                 key: "layer",
@@ -307,7 +307,7 @@ describe("LayersService", () => {
                 }
             });
 
-            (resourcesService.getCurrentLanguageCodeSimplified as Mock).mockReturnValue("en");
+            (resourcesService.getMapLanguageCodeSimplified as Mock).mockReturnValue("en");
             const address = service.getSelectedBaseLayerAddressForOSM();
             expect(address).toEqual(`${Urls.baseTilesAddress}/English/Tiles/{z}/{x}/{y}.png`);
         }
@@ -334,7 +334,7 @@ describe("LayersService", () => {
                 }
             });
 
-            (resourcesService.getCurrentLanguageCodeSimplified as Mock).mockReturnValue("he");
+            (resourcesService.getMapLanguageCodeSimplified as Mock).mockReturnValue("he");
             const address = service.getSelectedBaseLayerAddressForOSM();
             expect(address).toEqual(`${Urls.baseTilesAddress}/Hebrew/mtbTiles/{z}/{x}/{y}.png`);
         }

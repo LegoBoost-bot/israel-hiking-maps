@@ -1,4 +1,4 @@
-﻿import { Language } from "../language";
+﻿import { Language, LanguageCode } from "../language";
 
 export type BatteryOptimizationType = "screen-on" | "dark" | "screen-off";
 
@@ -21,6 +21,10 @@ export type ConfigurationState = {
     isShowOnboarding: boolean;
     version: number;
     language: Language;
+    /**
+     * The language of the labels and sites drawn on the map, or null to follow {@link language}.
+     */
+    mapLanguage: LanguageCode | null;
     units: "metric" | "imperial";
     dateFormat: string;
 };
