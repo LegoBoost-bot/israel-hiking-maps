@@ -271,6 +271,6 @@ export class MainMapComponent {
             this.map.removeSource("terrain");
             this.map.addSource("terrain", source);
         }
-        this.map.setTerrain({ source: "terrain", exaggeration: 2 });
+        this.map.setTerrain({ source: "terrain", exaggeration: 1 });
     }
 }
