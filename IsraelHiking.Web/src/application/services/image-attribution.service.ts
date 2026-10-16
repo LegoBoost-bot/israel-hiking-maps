@@ -33,7 +33,7 @@ export type ImageAttributionProvider = {
 @Service()
 export class ImageAttributionService {
     /** Hosts of images that can be shown but have no service of their own, they are credited by their origin */
-    private static readonly HOSTS_WITHOUT_A_SERVICE = ["jeepolog.com", "israelhiking.osm.org.il"];
+    private static readonly HOSTS_WITHOUT_A_SERVICE = ["jeepolog.com", "israelhiking.osm.org.il", "amudanan.co.il"];
 
     private readonly attributionImageCache = new Map<string, Promise<ImageAttribution>>();
 

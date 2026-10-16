@@ -60,7 +60,8 @@ describe("ImageAttributionService", () => {
                 image9: "https://example.com/image4.gif",
                 image10: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA",
                 image11: "israelhiking.osm.org.il/inmage.jpg",
-                image12: "mapeak.com/image.jpg"
+                image12: "mapeak.com/image.jpg",
+                image13: "https://amudanan.co.il/w/images/a/ab/image.jpg"
             }
         } as unknown as GeoJSON.Feature;
         const validUrls = service.getValidImageUrls(feature);
@@ -72,7 +73,8 @@ describe("ImageAttributionService", () => {
             "jeepolog.com/image.jpg",
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA",
             "israelhiking.osm.org.il/inmage.jpg",
-            "mapeak.com/image.jpg"
+            "mapeak.com/image.jpg",
+            "https://amudanan.co.il/w/images/a/ab/image.jpg"
         ]);
     }));
 
