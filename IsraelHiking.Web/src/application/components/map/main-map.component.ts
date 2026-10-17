@@ -21,6 +21,7 @@ import { MapeakLinkComponent } from "../mapeak-link.component";
 import { PublicPoisComponent } from "./public-pois.component";
 import { LayersButtonComponent } from "../layers-button.component";
 import { PrintButtonComponent } from "../print-button.component";
+import { PrintAreaSelectionComponent } from "../print-area-selection.component";
 import { OsmAttributionComponent } from "../osm-attribution.component";
 import { LayersSidebarComponent } from "../sidebar/layers/layers-sidebar.component";
 import { PublicPoiSidebarComponent } from "../sidebar/publicpoi/public-poi-sidebar.component";
@@ -43,7 +44,7 @@ import { ElevationProvider } from "../../services/elevation.provider";
     templateUrl: "./main-map.component.html",
     styleUrls: ["./main-map.component.scss"],
     encapsulation: ViewEncapsulation.None,
-    imports: [NgProgressbar, NgProgressHttp, NgStyle, MapComponent, LayersComponent, PublicPoisComponent, RoutesComponent, RecordedRouteComponent, ZoomComponent, LocationComponent, DrawingComponent, RouteStatisticsComponent, CenterMeComponent, MapeakLinkComponent, LayersButtonComponent, PrintButtonComponent, OsmAttributionComponent, MatSidenavContainer, MatSidenav, LayersSidebarComponent, PublicPoiSidebarComponent, PrivateRoutesSidebarComponent]
+    imports: [NgProgressbar, NgProgressHttp, NgStyle, MapComponent, LayersComponent, PublicPoisComponent, RoutesComponent, RecordedRouteComponent, ZoomComponent, LocationComponent, DrawingComponent, RouteStatisticsComponent, CenterMeComponent, MapeakLinkComponent, LayersButtonComponent, PrintButtonComponent, PrintAreaSelectionComponent, OsmAttributionComponent, MatSidenavContainer, MatSidenav, LayersSidebarComponent, PublicPoiSidebarComponent, PrivateRoutesSidebarComponent]
 })
 export class MainMapComponent {
 

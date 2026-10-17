@@ -15,8 +15,6 @@ export class PrintButtonComponent {
     private readonly dialog = inject(MatDialog);
 
     public openPrintDialog() {
-        this.dialog.open(ExportForPrintDialogComponent, {
-            data: { route: null }
-        });
+        ExportForPrintDialogComponent.openDialog(this.dialog, {});
     }
 }

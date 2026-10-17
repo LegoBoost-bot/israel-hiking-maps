@@ -7,7 +7,7 @@ import { Store } from "@ngxs/store";
 import { MapService } from "./map.service";
 import { RunningContextService } from "./running-context.service";
 import { SpatialHelper } from "./spatial.helper";
-import { RouteData, LatLngAltTime, ApplicationState, RouteEditStateType } from "../models";
+import { RouteData, LatLngAltTime, ApplicationState, RouteEditStateType, Bounds } from "../models";
 import { ChangeRouteStateAction } from "../reducers/routes.reducer";
 
 @Service()
@@ -113,10 +113,11 @@ export class PrintService {
         customScale: number,
         orientation: "portrait" | "landscape" | "auto",
         route: RouteData | undefined,
-        mode: "view" | "all" | "route",
+        mode: "area" | "all" | "route",
         includeHillshade: boolean,
         splitToPages: boolean,
-        excludedRouteIds: string[] = []
+        excludedRouteIds: string[] = [],
+        area?: Bounds
     ) {
         const map = this.mapService.map;
         if (!map) {
@@ -176,12 +177,12 @@ export class PrintService {
             }
         }
 
-        const bounds = latlngs.length > 0 ? SpatialHelper.getBounds(latlngs) : this.mapService.getMapBounds();
+        const bounds = mode === "area" && area ? area : latlngs.length > 0 ? SpatialHelper.getBounds(latlngs) : this.mapService.getMapBounds();
 
         if (format === "png") {
-            await this.exportPng(bounds, this.getFilename(firstRouteName, "png"));
+            await this.exportPng(bounds, mode === "area" ? 0 : 50, this.getFilename(firstRouteName, "png"));
         } else {
-            await this.exportPdf(bounds, scale, customScale, orientation, splitToPages, this.getFilename(firstRouteName, "pdf"));
+            await this.exportPdf(bounds, scale, customScale, orientation, splitToPages, mode === "area" ? 0 : 100, this.getFilename(firstRouteName, "pdf"));
         }
 
         if (route || mode === "all") {
@@ -195,7 +196,10 @@ export class PrintService {
         }
     }
 
-    private async exportPng(bounds: { southWest: { lat: number, lng: number }, northEast: { lat: number, lng: number } }, filename: string) {
+    /**
+     * @param padding the margin, in pixels, of map around the bounds - none when the user marked the exact area to print.
+     */
+    private async exportPng(bounds: { southWest: { lat: number, lng: number }, northEast: { lat: number, lng: number } }, padding: number, filename: string) {
         const map = this.mapService.map!;
 
         const container = map.getContainer();
@@ -215,7 +219,7 @@ export class PrintService {
         container.style.height = `${exportHeight}px`;
         map.resize();
 
-        await this.mapService.fitBounds(bounds, 50);
+        await this.mapService.fitBounds(bounds, padding);
         await this.waitForIdle(map);
 
         const dataUrl = map.getCanvas().toDataURL("image/png");
@@ -257,6 +261,7 @@ export class PrintService {
         customScale: number,
         orientation: "portrait" | "landscape" | "auto",
         splitToPages: boolean,
+        padding: number,
         filename: string
     ) {
         const map = this.mapService.map!;
@@ -280,7 +285,7 @@ export class PrintService {
 
         if (!splitToPages) {
             if (scale === "fit") {
-                await this.mapService.fitBounds(bounds, 100);
+                await this.mapService.fitBounds(bounds, padding);
             } else {
                 map.setCenter([SpatialHelper.getCenter([bounds.southWest, bounds.northEast]).lng, SpatialHelper.getCenter([bounds.southWest, bounds.northEast]).lat]);
                 map.setZoom(zoom);

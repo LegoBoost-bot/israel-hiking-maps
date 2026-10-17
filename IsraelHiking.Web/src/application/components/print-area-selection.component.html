@@ -1,0 +1,9 @@
+@if (printAreaSelectionService.isSelecting()) {
+<div class="fixed inset-x-0 bottom-0 z-[1000] flex justify-center px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pointer-events-none" [dir]="resources.direction">
+    <div class="pointer-events-auto flex flex-wrap items-center justify-end gap-2 w-full max-w-xl rounded-lg shadow-lg bg-surface text-on-surface px-3 py-2">
+        <span class="text-sm grow">{{printAreaSelectionService.isLocked() ? "Drag the page to move it" : "Drag the rectangle to move it, drag its corners to resize"}}</span>
+        <button mat-button (click)="printAreaSelectionService.cancel()">{{resources.cancel}}</button>
+        <button mat-flat-button (click)="printAreaSelectionService.confirm()">Done</button>
+    </div>
+</div>
+}
